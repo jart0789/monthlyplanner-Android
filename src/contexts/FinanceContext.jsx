@@ -6,8 +6,7 @@ const FinanceContext = createContext(undefined);
 
 // --- CONFIGURATION ---
 // CHANGE THIS VALUE to test (e.g., "14:30"). 
-// This format (HH:mm) is strict 24-hour format.
-const NOTIFICATION_TIME = "14:30"; 
+const NOTIFICATION_TIME = "15:20"; 
 
 const DEFAULT_CATEGORIES = [
   { id: 'c1', name: 'Housing', type: 'expense', icon: 'Home', color: '#3B82F6', notificationsEnabled: false },
@@ -88,7 +87,7 @@ export function FinanceProvider({ children }) {
             vibration: true,
         });
 
-        // Clear old to prevent duplicates
+        // Cancel old to prevent duplicates
         const pending = await LocalNotifications.getPending();
         if (pending.notifications.length > 0) {
           await LocalNotifications.cancel(pending);
@@ -99,18 +98,19 @@ export function FinanceProvider({ children }) {
         const [userHour, userMinute] = NOTIFICATION_TIME.split(':').map(Number);
         let notifId = 100; 
 
-        // REQUIREMENT 2: Expense Bill Reminders
+        // --- 1. BILL REMINDERS (Expense Categories) ---
         // Criteria: Recurring Expenses, using "Start Date" (tx.date)
         if (settings.notifications.bill_reminders) {
           transactions
             .filter(tx => tx.isRecurring && tx.type === 'expense')
             .forEach(tx => {
                const cat = categories.find(c => c.id === tx.categoryId || c.name === tx.category);
+               // Only if Category has notifications enabled
                if (cat && cat.notificationsEnabled) {
                   let current = new Date(tx.date);
                   current.setHours(userHour, userMinute, 0, 0);
                   
-                  // Fast forward to future
+                  // Forward to future
                   while (current < now) {
                       if (tx.frequency === 'weekly') current.setDate(current.getDate() + 7);
                       else if (tx.frequency === 'biweekly') current.setDate(current.getDate() + 14);
@@ -124,7 +124,7 @@ export function FinanceProvider({ children }) {
                           id: notifId++,
                           title: `Bill Due: ${tx.category}`,
                           body: `Friendly reminder: Time to pay ${tx.category} (${formatCurrency(tx.amount)})`,
-                          schedule: { at: new Date(current), allowWhileIdle: true }, // Key: allowWhileIdle
+                          schedule: { at: new Date(current), allowWhileIdle: true }, // FORCE WAKE
                           channelId: 'finance_alerts',
                       });
                       
@@ -138,44 +138,46 @@ export function FinanceProvider({ children }) {
             });
         }
 
-        // REQUIREMENT 1: Loans & Credit Cards (Manual)
+        // --- 2. LOAN DUE DATES (Manual Payments) ---
         // Criteria: Credits !autopay, using "Next Due Date" (c.dueDate)
         if (settings.notifications.loan_dates) {
            const bufferDays = parseInt(settings.notifications.loan_notify_days || 0);
            
+           // Only select credits that are NOT autopay
            credits.filter(c => !c.autopay && c.dueDate).forEach(c => {
-              const due = new Date(c.dueDate);
-              let current = new Date(now.getFullYear(), now.getMonth(), due.getDate(), userHour, userMinute, 0);
-              
-              if (current < now) current.setMonth(current.getMonth() + 1);
+               const due = new Date(c.dueDate);
+               let current = new Date(now.getFullYear(), now.getMonth(), due.getDate(), userHour, userMinute, 0);
+               
+               if (current < now) current.setMonth(current.getMonth() + 1);
 
-              for(let i=0; i<6; i++) {
-                  const notifyTime = new Date(current);
-                  notifyTime.setDate(current.getDate() - bufferDays);
-                  
-                  if (notifyTime > now) {
-                      notificationsToSchedule.push({
-                          id: notifId++,
-                          title: `Payment Due`,
-                          body: `Payment for ${c.name} is due in ${bufferDays} days.`,
-                          schedule: { at: notifyTime, allowWhileIdle: true },
-                          channelId: 'finance_alerts',
-                      });
-                  }
-                  current.setMonth(current.getMonth() + 1);
-              }
+               for(let i=0; i<6; i++) {
+                   const notifyTime = new Date(current);
+                   notifyTime.setDate(current.getDate() - bufferDays);
+                   
+                   if (notifyTime > now) {
+                       notificationsToSchedule.push({
+                           id: notifId++,
+                           title: `Payment Due`,
+                           body: `Payment for ${c.name} is due in ${bufferDays} days.`,
+                           schedule: { at: notifyTime, allowWhileIdle: true }, // FORCE WAKE
+                           channelId: 'finance_alerts',
+                       });
+                   }
+                   current.setMonth(current.getMonth() + 1);
+               }
            });
         }
 
-        // REQUIREMENT 3: Autopay Alerts (History/Future Payment)
+        // --- 3. AUTOPAY ALERTS (Automatic Payments) ---
         // Criteria: Credits WITH autopay=true, using "Next Due Date"
         if (settings.notifications.autopay) {
-            const bufferDays = 1; // 1 Day before autopay to check funds
+            const bufferDays = 1; // Notify 1 day before to check funds
 
             credits.filter(c => c.autopay && c.dueDate).forEach(c => {
                 const due = new Date(c.dueDate);
                 let current = new Date(now.getFullYear(), now.getMonth(), due.getDate(), userHour, userMinute, 0);
                 
+                // If today passed, start next month
                 if (current < now) current.setMonth(current.getMonth() + 1);
 
                 for(let i=0; i<6; i++) {
@@ -187,7 +189,7 @@ export function FinanceProvider({ children }) {
                             id: notifId++,
                             title: `Upcoming Autopay`,
                             body: `${c.name} will be autopaid tomorrow. Ensure funds are available.`,
-                            schedule: { at: notifyTime, allowWhileIdle: true },
+                            schedule: { at: notifyTime, allowWhileIdle: true }, // FORCE WAKE
                             channelId: 'finance_alerts',
                         });
                     }
@@ -208,7 +210,7 @@ export function FinanceProvider({ children }) {
     scheduleNotifications();
   }, [transactions, credits, categories, settings.notifications]); 
 
-  // --- ACTIONS (Standard) ---
+  // ... (Rest of your Actions code - Unchanged) ...
   const addTransaction = (tx) => setTransactions(prev => [{ ...tx, id: generateId(), createdAt: new Date().toISOString() }, ...prev]);
   const updateTransaction = (id, tx) => setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...tx } : t));
   const deleteTransaction = (id) => setTransactions(prev => prev.filter(t => t.id !== id));
@@ -292,7 +294,7 @@ export function FinanceProvider({ children }) {
       addCredit, updateCredit, deleteCredit, recordCreditPayment,
       addCategory, updateCategory, deleteCategory,
       formatCurrency, t, language: settings.language, theme: settings.theme, currency: settings.currency,
-      notificationTime: NOTIFICATION_TIME // EXPORTED FOR SETTINGS
+      notificationTime: NOTIFICATION_TIME // EXPORTED
     }}>
       {children}
     </FinanceContext.Provider>

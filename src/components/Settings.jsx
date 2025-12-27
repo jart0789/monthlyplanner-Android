@@ -28,7 +28,7 @@ export default function Settings() {
   const getNotifState = (key) => settings.notifications ? settings.notifications[key] : false;
   const getNotifValue = (key) => settings.notifications ? (settings.notifications[key] || 0) : 0;
 
-  // --- NEW: TEST SPECIFIC TIME LOGIC ---
+  // --- SMART TEST BUTTON ---
   const triggerTestSchedule = async () => {
     try {
         const perm = await LocalNotifications.requestPermissions();
@@ -41,24 +41,24 @@ export default function Settings() {
         const target = new Date();
         target.setHours(configHour, configMinute, 0, 0);
 
+        // If time passed, schedule for TOMORROW
         if (target < now) {
-            // If time passed today, test for TOMORROW
             target.setDate(target.getDate() + 1);
         }
 
         await LocalNotifications.schedule({
             notifications: [{
-                title: "Schedule Verified",
-                body: `This is a test. If you see this, your ${notificationTime} schedule is working perfectly!`,
+                title: "Test Successful",
+                body: `This is a test alert. If you see this, your ${notificationTime} daily schedule works!`,
                 id: 99999,
-                schedule: { at: target, allowWhileIdle: true }, // Strict compliance with Main Logic
+                schedule: { at: target, allowWhileIdle: true }, // MATCHES REAL LOGIC
                 sound: null,
                 channelId: 'finance_alerts'
             }]
         });
 
         const timeString = target.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        alert(`Test Scheduled! \n\nTarget Time: ${timeString}\n\n1. Close the App.\n2. Wait until ${timeString} for the alert.`);
+        alert(`Test Scheduled! \n\nTarget Time: ${timeString}\n\n1. Close App.\n2. Wait until ${timeString}.`);
     } catch (e) {
         alert("Error: " + e.message);
     }
@@ -140,14 +140,14 @@ export default function Settings() {
                 </button>
              </div>
 
-             {/* 4. NEW: REAL SCHEDULE TEST BUTTON */}
+             {/* 4. DEBUG BUTTON */}
              <div onClick={triggerTestSchedule} className="bg-slate-100 dark:bg-slate-900 p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 flex justify-center items-center gap-2 cursor-pointer active:scale-95 transition-transform">
                 <Smartphone className="w-4 h-4 text-slate-400"/>
-                <span className="text-sm font-bold text-slate-500">Test Schedule at {notificationTime}</span>
+                <span className="text-sm font-bold text-slate-500">Test Schedule ({notificationTime})</span>
              </div>
 
           </div>
-          {/* ... Regional Settings (Keep existing) ... */}
+          {/* ... Regional Settings (same as before) ... */}
           <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center">
              <div className="flex items-center gap-3">
                 <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"><DollarSign className="w-5 h-5 text-emerald-500"/></div>
@@ -175,10 +175,10 @@ export default function Settings() {
         </div>
       )}
 
-      {/* --- CATEGORIES TAB (Preserved) --- */}
+      {/* --- CATEGORIES TAB (same as before) --- */}
       {activeTab === 'categories' && (
         <div className="space-y-6">
-          {/* ... Categories List (Keep your existing categories code) ... */}
+          {/* ... Categories List ... */}
           {/* Add/Edit Form */}
           <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
              <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
