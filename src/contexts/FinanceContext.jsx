@@ -5,6 +5,8 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 const FinanceContext = createContext(undefined);
 
 // --- CONFIGURATION ---
+// CHANGE THIS VALUE to test (e.g., "14:30"). 
+// This format (HH:mm) is strict 24-hour format.
 const NOTIFICATION_TIME = "14:30"; 
 
 const DEFAULT_CATEGORIES = [
@@ -86,6 +88,7 @@ export function FinanceProvider({ children }) {
             vibration: true,
         });
 
+        // Clear old to prevent duplicates
         const pending = await LocalNotifications.getPending();
         if (pending.notifications.length > 0) {
           await LocalNotifications.cancel(pending);
@@ -96,19 +99,18 @@ export function FinanceProvider({ children }) {
         const [userHour, userMinute] = NOTIFICATION_TIME.split(':').map(Number);
         let notifId = 100; 
 
-        // 1. BILL REMINDERS (Expense Categories)
-        // Logic: Uses "Start Date" and Frequency
+        // REQUIREMENT 2: Expense Bill Reminders
+        // Criteria: Recurring Expenses, using "Start Date" (tx.date)
         if (settings.notifications.bill_reminders) {
           transactions
             .filter(tx => tx.isRecurring && tx.type === 'expense')
             .forEach(tx => {
                const cat = categories.find(c => c.id === tx.categoryId || c.name === tx.category);
-               // Only if Category has notifications enabled
                if (cat && cat.notificationsEnabled) {
                   let current = new Date(tx.date);
                   current.setHours(userHour, userMinute, 0, 0);
                   
-                  // Forward to future
+                  // Fast forward to future
                   while (current < now) {
                       if (tx.frequency === 'weekly') current.setDate(current.getDate() + 7);
                       else if (tx.frequency === 'biweekly') current.setDate(current.getDate() + 14);
@@ -122,7 +124,7 @@ export function FinanceProvider({ children }) {
                           id: notifId++,
                           title: `Bill Due: ${tx.category}`,
                           body: `Friendly reminder: Time to pay ${tx.category} (${formatCurrency(tx.amount)})`,
-                          schedule: { at: new Date(current), allowWhileIdle: true }, 
+                          schedule: { at: new Date(current), allowWhileIdle: true }, // Key: allowWhileIdle
                           channelId: 'finance_alerts',
                       });
                       
@@ -136,44 +138,44 @@ export function FinanceProvider({ children }) {
             });
         }
 
-        // 2. LOAN DUE DATES (Manual Payments)
-        // Logic: Uses "Next Due Date" from Credits
+        // REQUIREMENT 1: Loans & Credit Cards (Manual)
+        // Criteria: Credits !autopay, using "Next Due Date" (c.dueDate)
         if (settings.notifications.loan_dates) {
            const bufferDays = parseInt(settings.notifications.loan_notify_days || 0);
-           // Only select credits that are NOT autopay
+           
            credits.filter(c => !c.autopay && c.dueDate).forEach(c => {
-               const due = new Date(c.dueDate);
-               let current = new Date(now.getFullYear(), now.getMonth(), due.getDate(), userHour, userMinute, 0);
-               if (current < now) current.setMonth(current.getMonth() + 1);
+              const due = new Date(c.dueDate);
+              let current = new Date(now.getFullYear(), now.getMonth(), due.getDate(), userHour, userMinute, 0);
+              
+              if (current < now) current.setMonth(current.getMonth() + 1);
 
-               for(let i=0; i<6; i++) {
-                   const notifyTime = new Date(current);
-                   notifyTime.setDate(current.getDate() - bufferDays);
-                   
-                   if (notifyTime > now) {
-                       notificationsToSchedule.push({
-                           id: notifId++,
-                           title: `Payment Due`,
-                           body: `Payment for ${c.name} is due in ${bufferDays} days.`,
-                           schedule: { at: notifyTime, allowWhileIdle: true },
-                           channelId: 'finance_alerts',
-                       });
-                   }
-                   current.setMonth(current.getMonth() + 1);
-               }
+              for(let i=0; i<6; i++) {
+                  const notifyTime = new Date(current);
+                  notifyTime.setDate(current.getDate() - bufferDays);
+                  
+                  if (notifyTime > now) {
+                      notificationsToSchedule.push({
+                          id: notifId++,
+                          title: `Payment Due`,
+                          body: `Payment for ${c.name} is due in ${bufferDays} days.`,
+                          schedule: { at: notifyTime, allowWhileIdle: true },
+                          channelId: 'finance_alerts',
+                      });
+                  }
+                  current.setMonth(current.getMonth() + 1);
+              }
            });
         }
 
-        // 3. AUTOPAY NOTIFICATIONS (Automatic Payments)
-        // Logic: Uses "Next Due Date" but sends a different "Autopay" message
+        // REQUIREMENT 3: Autopay Alerts (History/Future Payment)
+        // Criteria: Credits WITH autopay=true, using "Next Due Date"
         if (settings.notifications.autopay) {
+            const bufferDays = 1; // 1 Day before autopay to check funds
+
             credits.filter(c => c.autopay && c.dueDate).forEach(c => {
                 const due = new Date(c.dueDate);
                 let current = new Date(now.getFullYear(), now.getMonth(), due.getDate(), userHour, userMinute, 0);
-                // For autopay, maybe notify 1 day before to ensure funds? Defaulting to same day or user pref buffer.
-                // Let's use 1 day before as a sensible default for "Autopay Alert"
-                const bufferDays = 1; 
-
+                
                 if (current < now) current.setMonth(current.getMonth() + 1);
 
                 for(let i=0; i<6; i++) {
@@ -206,7 +208,7 @@ export function FinanceProvider({ children }) {
     scheduleNotifications();
   }, [transactions, credits, categories, settings.notifications]); 
 
-  // --- ACTIONS (Unchanged) ---
+  // --- ACTIONS (Standard) ---
   const addTransaction = (tx) => setTransactions(prev => [{ ...tx, id: generateId(), createdAt: new Date().toISOString() }, ...prev]);
   const updateTransaction = (id, tx) => setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...tx } : t));
   const deleteTransaction = (id) => setTransactions(prev => prev.filter(t => t.id !== id));
@@ -289,7 +291,8 @@ export function FinanceProvider({ children }) {
       addTransaction, updateTransaction, deleteTransaction,
       addCredit, updateCredit, deleteCredit, recordCreditPayment,
       addCategory, updateCategory, deleteCategory,
-      formatCurrency, t, language: settings.language, theme: settings.theme, currency: settings.currency
+      formatCurrency, t, language: settings.language, theme: settings.theme, currency: settings.currency,
+      notificationTime: NOTIFICATION_TIME // EXPORTED FOR SETTINGS
     }}>
       {children}
     </FinanceContext.Provider>
