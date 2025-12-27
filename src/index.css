@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light Mode Variables */
+    --background: #f8fafc; /* slate-50 */
+    --foreground: #0f172a; /* slate-900 */
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+  }
+
+  .dark {
+    /* Dark Mode Variables */
+    --background: #0f172a; /* slate-900 */
+    --foreground: #f8fafc; /* slate-50 */
+    --card: #1e293b; /* slate-800 */
+    --card-foreground: #f8fafc;
+  }
+}
+
+/* FIX: Use standard CSS here instead of @apply to prevent build errors */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  transition-property: background-color, color, border-color;
+  transition-duration: 300ms;
+}
