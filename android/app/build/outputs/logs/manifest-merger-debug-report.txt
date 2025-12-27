@@ -11,10 +11,10 @@ INJECTED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xm
 	android:name
 		ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:28:13-62
 manifest
-ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:2:1-41:12
-INJECTED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:2:1-41:12
-INJECTED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:2:1-41:12
-INJECTED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:2:1-41:12
+ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:2:1-47:12
+INJECTED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:2:1-47:12
+INJECTED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:2:1-47:12
+INJECTED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:2:1-47:12
 MERGED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-26:12
 MERGED from [:capacitor-android] C:\Users\rodri\fin-tracker\node_modules\@capacitor\android\capacitor\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-7:12
 MERGED from [:capacitor-cordova-android-plugins] C:\Users\rodri\fin-tracker\android\capacitor-cordova-android-plugins\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:2:1-11:12
@@ -123,6 +123,36 @@ uses-permission#android.permission.INTERNET
 ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:40:5-67
 	android:name
 		ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:40:22-64
+uses-permission#android.permission.SCHEDULE_EXACT_ALARM
+ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:41:5-79
+	android:name
+		ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:41:22-76
+uses-permission#android.permission.USE_EXACT_ALARM
+ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:42:5-74
+	android:name
+		ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:42:22-71
+uses-permission#android.permission.RECEIVE_BOOT_COMPLETED
+ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:43:5-80
+MERGED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:7:5-81
+MERGED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:7:5-81
+	android:name
+		ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:43:22-78
+uses-permission#android.permission.WAKE_LOCK
+ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:44:5-68
+MERGED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:5-68
+MERGED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:5-68
+	android:name
+		ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:44:22-65
+uses-permission#android.permission.VIBRATE
+ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:45:5-66
+	android:name
+		ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:45:22-63
+uses-permission#android.permission.POST_NOTIFICATIONS
+ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:46:5-76
+MERGED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:5-77
+MERGED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:5-77
+	android:name
+		ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:46:22-74
 meta-data#android.support.FILE_PROVIDER_PATHS
 ADDED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml:32:13-34:64
 	android:resource
@@ -211,18 +241,6 @@ MERGED from [androidx.core:core-viewtree:1.0.0] C:\Users\rodri\.gradle\caches\8.
 		INJECTED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml
 	android:minSdkVersion
 		INJECTED from C:\Users\rodri\fin-tracker\android\app\src\main\AndroidManifest.xml
-uses-permission#android.permission.RECEIVE_BOOT_COMPLETED
-ADDED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:7:5-81
-	android:name
-		ADDED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:7:22-78
-uses-permission#android.permission.WAKE_LOCK
-ADDED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:5-68
-	android:name
-		ADDED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:8:22-65
-uses-permission#android.permission.POST_NOTIFICATIONS
-ADDED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:5-77
-	android:name
-		ADDED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:9:22-74
 receiver#com.capacitorjs.plugins.localnotifications.TimedNotificationPublisher
 ADDED from [:capacitor-local-notifications] C:\Users\rodri\fin-tracker\node_modules\@capacitor\local-notifications\android\build\intermediates\merged_manifest\debug\processDebugManifest\AndroidManifest.xml:12:9-106
 	android:name
