@@ -127,7 +127,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
 
         {/* Date */}
         <div className="mb-6">
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Start Date</label>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Due Date</label>
           <div className="relative">
             <input 
               type="date" 
