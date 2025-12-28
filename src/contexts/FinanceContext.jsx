@@ -5,8 +5,9 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 const FinanceContext = createContext(undefined);
 
 // --- CONFIGURATION ---
-// CHANGE THIS VALUE to test (e.g., "14:30"). 
-const NOTIFICATION_TIME = "15:20"; 
+// Set this to "06:00" for production.
+// For testing, set this 2 minutes into the future (e.g. if now is 14:50, set 14:52)
+const NOTIFICATION_TIME = "17:15"; 
 
 const DEFAULT_CATEGORIES = [
   { id: 'c1', name: 'Housing', type: 'expense', icon: 'Home', color: '#3B82F6', notificationsEnabled: false },
@@ -69,6 +70,18 @@ export function FinanceProvider({ children }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, credits, categories, settings }));
   }, [settings.theme, transactions, credits, categories, settings]);
 
+  // --- HELPER: Fix Timezone Issues ---
+  // Forces "2025-01-25" to be Jan 25th Local Time 00:00
+  const getLocalDate = (dateStr) => {
+     if (!dateStr) return new Date();
+     // Split YYYY-MM-DD manually to avoid UTC conversion
+     const parts = dateStr.split('-');
+     if (parts.length === 3) {
+         return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+     }
+     return new Date(dateStr);
+  };
+
   // --- 3. ROBUST NOTIFICATION SCHEDULER ---
   useEffect(() => {
     const scheduleNotifications = async () => {
@@ -77,7 +90,6 @@ export function FinanceProvider({ children }) {
         if (perm.display !== 'granted') perm = await LocalNotifications.requestPermissions();
         if (perm.display !== 'granted') return; 
 
-        // Create Channel (Required for Android)
         await LocalNotifications.createChannel({
             id: 'finance_alerts',
             name: 'Bill Reminders',
@@ -87,7 +99,6 @@ export function FinanceProvider({ children }) {
             vibration: true,
         });
 
-        // Cancel old to prevent duplicates
         const pending = await LocalNotifications.getPending();
         if (pending.notifications.length > 0) {
           await LocalNotifications.cancel(pending);
@@ -105,26 +116,41 @@ export function FinanceProvider({ children }) {
             .filter(tx => tx.isRecurring && tx.type === 'expense')
             .forEach(tx => {
                const cat = categories.find(c => c.id === tx.categoryId || c.name === tx.category);
-               // Only if Category has notifications enabled
+               
                if (cat && cat.notificationsEnabled) {
-                  let current = new Date(tx.date);
+                  // FIX: Use getLocalDate to prevent "Yesterday" bug
+                  let current = getLocalDate(tx.date);
                   current.setHours(userHour, userMinute, 0, 0);
                   
-                  // Forward to future
+                  // Fast Forward Logic
+                  // We loop only if 'current' is STRICTLY in the past.
+                  // This allows Today's notifications to stay valid if time hasn't passed.
                   while (current < now) {
-                      if (tx.frequency === 'weekly') current.setDate(current.getDate() + 7);
-                      else if (tx.frequency === 'biweekly') current.setDate(current.getDate() + 14);
-                      else if (tx.frequency === 'yearly') current.setFullYear(current.getFullYear() + 1);
-                      else current.setMonth(current.getMonth() + 1);
-                  }
+                      // Check: Is it Today but just earlier? Or truly in past?
+                      // If it's today 14:00 and now is 14:01, we missed it -> move next.
+                      // If it's today 14:00 and now is 13:59, we keep it.
+                      
+                      // Calculate "Next" tentative date
+                      let next = new Date(current);
+                      if (tx.frequency === 'weekly') next.setDate(next.getDate() + 7);
+                      else if (tx.frequency === 'biweekly') next.setDate(next.getDate() + 14);
+                      else if (tx.frequency === 'yearly') next.setFullYear(next.getFullYear() + 1);
+                      else next.setMonth(next.getMonth() + 1);
 
-                  // Schedule next 6 occurrences
+                      // If 'current' is definitely gone, assume 'next'.
+                      // But if 'current' is basically 'start date', we might have missed months.
+                      current = next;
+                  }
+                  
+                  // Double check: The while loop ensures current >= now.
+                  // But for testing purposes, if 'current' landed exactly on 'now' or future, we schedule it.
+
                   for (let i = 0; i < 6; i++) {
                       notificationsToSchedule.push({
                           id: notifId++,
                           title: `Bill Due: ${tx.category}`,
                           body: `Friendly reminder: Time to pay ${tx.category} (${formatCurrency(tx.amount)})`,
-                          schedule: { at: new Date(current), allowWhileIdle: true }, // FORCE WAKE
+                          schedule: { at: new Date(current), allowWhileIdle: true }, 
                           channelId: 'finance_alerts',
                       });
                       
@@ -139,19 +165,29 @@ export function FinanceProvider({ children }) {
         }
 
         // --- 2. LOAN DUE DATES (Manual Payments) ---
-        // Criteria: Credits !autopay, using "Next Due Date" (c.dueDate)
         if (settings.notifications.loan_dates) {
            const bufferDays = parseInt(settings.notifications.loan_notify_days || 0);
            
-           // Only select credits that are NOT autopay
            credits.filter(c => !c.autopay && c.dueDate).forEach(c => {
-               const due = new Date(c.dueDate);
-               let current = new Date(now.getFullYear(), now.getMonth(), due.getDate(), userHour, userMinute, 0);
+               // FIX: Use getLocalDate
+               const savedDate = getLocalDate(c.dueDate);
+               const dayOfMonth = savedDate.getDate();
+
+               let current = new Date(); // Start Today
+               current.setDate(dayOfMonth);
+               current.setHours(userHour, userMinute, 0, 0);
                
-               if (current < now) current.setMonth(current.getMonth() + 1);
+               // Calculate notification moment
+               let notifyTime = new Date(current);
+               notifyTime.setDate(current.getDate() - bufferDays);
+
+               // If that moment passed, move to next month
+               if (notifyTime < now) {
+                   current.setMonth(current.getMonth() + 1);
+               }
 
                for(let i=0; i<6; i++) {
-                   const notifyTime = new Date(current);
+                   notifyTime = new Date(current);
                    notifyTime.setDate(current.getDate() - bufferDays);
                    
                    if (notifyTime > now) {
@@ -159,7 +195,7 @@ export function FinanceProvider({ children }) {
                            id: notifId++,
                            title: `Payment Due`,
                            body: `Payment for ${c.name} is due in ${bufferDays} days.`,
-                           schedule: { at: notifyTime, allowWhileIdle: true }, // FORCE WAKE
+                           schedule: { at: notifyTime, allowWhileIdle: true }, 
                            channelId: 'finance_alerts',
                        });
                    }
@@ -168,28 +204,36 @@ export function FinanceProvider({ children }) {
            });
         }
 
-        // --- 3. AUTOPAY ALERTS (Automatic Payments) ---
-        // Criteria: Credits WITH autopay=true, using "Next Due Date"
+        // --- 3. AUTOPAY ALERTS (Automatic) ---
         if (settings.notifications.autopay) {
-            const bufferDays = 1; // Notify 1 day before to check funds
+            const bufferDays = 0; // On the day
 
             credits.filter(c => c.autopay && c.dueDate).forEach(c => {
-                const due = new Date(c.dueDate);
-                let current = new Date(now.getFullYear(), now.getMonth(), due.getDate(), userHour, userMinute, 0);
-                
-                // If today passed, start next month
-                if (current < now) current.setMonth(current.getMonth() + 1);
+                // FIX: Use getLocalDate
+                const savedDate = getLocalDate(c.dueDate);
+                const dayOfMonth = savedDate.getDate();
+
+                let current = new Date();
+                current.setDate(dayOfMonth);
+                current.setHours(userHour, userMinute, 0, 0);
+
+                let notifyTime = new Date(current);
+                notifyTime.setDate(current.getDate() - bufferDays);
+
+                if (notifyTime < now) {
+                    current.setMonth(current.getMonth() + 1);
+                }
 
                 for(let i=0; i<6; i++) {
-                    const notifyTime = new Date(current);
+                    notifyTime = new Date(current);
                     notifyTime.setDate(current.getDate() - bufferDays);
 
                     if (notifyTime > now) {
                         notificationsToSchedule.push({
                             id: notifId++,
                             title: `Upcoming Autopay`,
-                            body: `${c.name} will be autopaid tomorrow. Ensure funds are available.`,
-                            schedule: { at: notifyTime, allowWhileIdle: true }, // FORCE WAKE
+                            body: `${c.name} will be autopaid today. Ensure funds are available.`,
+                            schedule: { at: notifyTime, allowWhileIdle: true },
                             channelId: 'finance_alerts',
                         });
                     }
@@ -200,7 +244,7 @@ export function FinanceProvider({ children }) {
 
         if (notificationsToSchedule.length > 0) {
             await LocalNotifications.schedule({ notifications: notificationsToSchedule });
-            console.log(`Scheduled ${notificationsToSchedule.length} alerts.`);
+            console.log(`Scheduled ${notificationsToSchedule.length} alerts for ${NOTIFICATION_TIME}.`);
         }
       } catch (e) {
           console.error("Notification Error:", e);
@@ -210,7 +254,7 @@ export function FinanceProvider({ children }) {
     scheduleNotifications();
   }, [transactions, credits, categories, settings.notifications]); 
 
-  // ... (Rest of your Actions code - Unchanged) ...
+  // ... Actions ...
   const addTransaction = (tx) => setTransactions(prev => [{ ...tx, id: generateId(), createdAt: new Date().toISOString() }, ...prev]);
   const updateTransaction = (id, tx) => setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...tx } : t));
   const deleteTransaction = (id) => setTransactions(prev => prev.filter(t => t.id !== id));
@@ -294,7 +338,7 @@ export function FinanceProvider({ children }) {
       addCredit, updateCredit, deleteCredit, recordCreditPayment,
       addCategory, updateCategory, deleteCategory,
       formatCurrency, t, language: settings.language, theme: settings.theme, currency: settings.currency,
-      notificationTime: NOTIFICATION_TIME // EXPORTED
+      notificationTime: NOTIFICATION_TIME
     }}>
       {children}
     </FinanceContext.Provider>
