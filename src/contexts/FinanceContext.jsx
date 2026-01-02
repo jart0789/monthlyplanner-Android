@@ -5,9 +5,8 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 const FinanceContext = createContext(undefined);
 
 // --- CONFIGURATION ---
-// Set this to "06:00" for production.
-// For testing, set this 2 minutes into the future (e.g. if now is 14:50, set 14:52)
-const NOTIFICATION_TIME = "17:15"; 
+// Set to "06:00" for production
+const NOTIFICATION_TIME = "06:00"; 
 
 const DEFAULT_CATEGORIES = [
   { id: 'c1', name: 'Housing', type: 'expense', icon: 'Home', color: '#3B82F6', notificationsEnabled: false },
@@ -32,6 +31,16 @@ const DEFAULT_SETTINGS = {
 
 const STORAGE_KEY = 'finance_data';
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+// Helper: Parse date strictly as local YYYY-MM-DD
+const getLocalDate = (dateStr) => {
+    if (!dateStr) return new Date();
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    }
+    return new Date(dateStr);
+};
 
 export function FinanceProvider({ children }) {
   const [data, setData] = useState(() => {
@@ -70,19 +79,93 @@ export function FinanceProvider({ children }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, credits, categories, settings }));
   }, [settings.theme, transactions, credits, categories, settings]);
 
-  // --- HELPER: Fix Timezone Issues ---
-  // Forces "2025-01-25" to be Jan 25th Local Time 00:00
-  const getLocalDate = (dateStr) => {
-     if (!dateStr) return new Date();
-     // Split YYYY-MM-DD manually to avoid UTC conversion
-     const parts = dateStr.split('-');
-     if (parts.length === 3) {
-         return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-     }
-     return new Date(dateStr);
-  };
 
-  // --- 3. ROBUST NOTIFICATION SCHEDULER ---
+  // --- AUTO-GENERATOR ENGINE ---
+  useEffect(() => {
+    const processRecurringTransactions = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let newTransactions = [];
+        let hasChanges = false;
+
+        // 1. Group by recurringId (Treat items without recurringId as their own 'root')
+        const recurringGroups = {};
+        
+        transactions.forEach(t => {
+            if (t.isRecurring) {
+                // Compatibility: If older data lacks recurringId, use its own ID
+                const groupId = t.recurringId || t.id; 
+                if (!recurringGroups[groupId]) recurringGroups[groupId] = [];
+                recurringGroups[groupId].push(t);
+            }
+        });
+
+        // 2. Process each group to find the LATEST entry
+        Object.keys(recurringGroups).forEach(groupId => {
+            const group = recurringGroups[groupId];
+            // Sort by date descending (newest first)
+            group.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            const latestTx = group[0];
+            const latestDate = getLocalDate(latestTx.date);
+            
+            // Calculate NEXT occurrence
+            let nextDate = new Date(latestDate);
+            
+            // Logic to advance date
+            // We use a loop to catch up if user missed multiple months
+            // But strict limit (e.g. 12) to prevent infinite loops
+            let iterations = 0;
+            
+            while (iterations < 12) {
+                // Advance based on frequency
+                if (latestTx.frequency === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
+                else if (latestTx.frequency === 'biweekly') nextDate.setDate(nextDate.getDate() + 14);
+                else if (latestTx.frequency === 'yearly') nextDate.setFullYear(nextDate.getFullYear() + 1);
+                else nextDate.setMonth(nextDate.getMonth() + 1); // Default Monthly
+
+                // STOP if nextDate is in the future
+                if (nextDate > today) break;
+
+                // GENERATE NEW TRANSACTION
+                const newTx = {
+                    ...latestTx,
+                    id: generateId(),
+                    date: nextDate.toISOString().split('T')[0],
+                    recurringId: groupId, // Ensure it links to the family
+                    createdAt: new Date().toISOString(),
+                    isGenerated: true // Optional flag for debugging
+                };
+
+                newTransactions.push(newTx);
+                hasChanges = true;
+                
+                // Move cursor forward for next iteration
+                // (We don't need to re-sort, just base next loop on this new date)
+                // Note: Javascript Date objects are mutable reference types? 
+                // No, we modify 'nextDate' in place, but we need to ensure we don't start from 'latestDate' again.
+                // Actually, the while loop already modifies 'nextDate'. 
+                // We just need to make sure we don't push the SAME object twice if we loop.
+                // But simplified: effectively we are walking 'nextDate' forward.
+                
+                iterations++;
+            }
+        });
+
+        if (hasChanges && newTransactions.length > 0) {
+            console.log(`Generated ${newTransactions.length} recurring transactions.`);
+            setTransactions(prev => [...newTransactions, ...prev]);
+        }
+    };
+    
+    // Run once on mount (with a small timeout to ensure data loaded)
+    const timer = setTimeout(processRecurringTransactions, 1000);
+    return () => clearTimeout(timer);
+  }, [transactions.length]); // Dependency: run when count changes, but internal logic prevents duplicates
+
+
+  // --- NOTIFICATION SCHEDULER (Logic Preserved) ---
   useEffect(() => {
     const scheduleNotifications = async () => {
       try {
@@ -109,8 +192,7 @@ export function FinanceProvider({ children }) {
         const [userHour, userMinute] = NOTIFICATION_TIME.split(':').map(Number);
         let notifId = 100; 
 
-        // --- 1. BILL REMINDERS (Expense Categories) ---
-        // Criteria: Recurring Expenses, using "Start Date" (tx.date)
+        // 1. BILL REMINDERS
         if (settings.notifications.bill_reminders) {
           transactions
             .filter(tx => tx.isRecurring && tx.type === 'expense')
@@ -118,33 +200,18 @@ export function FinanceProvider({ children }) {
                const cat = categories.find(c => c.id === tx.categoryId || c.name === tx.category);
                
                if (cat && cat.notificationsEnabled) {
-                  // FIX: Use getLocalDate to prevent "Yesterday" bug
                   let current = getLocalDate(tx.date);
                   current.setHours(userHour, userMinute, 0, 0);
                   
-                  // Fast Forward Logic
-                  // We loop only if 'current' is STRICTLY in the past.
-                  // This allows Today's notifications to stay valid if time hasn't passed.
                   while (current < now) {
-                      // Check: Is it Today but just earlier? Or truly in past?
-                      // If it's today 14:00 and now is 14:01, we missed it -> move next.
-                      // If it's today 14:00 and now is 13:59, we keep it.
-                      
-                      // Calculate "Next" tentative date
                       let next = new Date(current);
                       if (tx.frequency === 'weekly') next.setDate(next.getDate() + 7);
                       else if (tx.frequency === 'biweekly') next.setDate(next.getDate() + 14);
                       else if (tx.frequency === 'yearly') next.setFullYear(next.getFullYear() + 1);
                       else next.setMonth(next.getMonth() + 1);
-
-                      // If 'current' is definitely gone, assume 'next'.
-                      // But if 'current' is basically 'start date', we might have missed months.
                       current = next;
                   }
                   
-                  // Double check: The while loop ensures current >= now.
-                  // But for testing purposes, if 'current' landed exactly on 'now' or future, we schedule it.
-
                   for (let i = 0; i < 6; i++) {
                       notificationsToSchedule.push({
                           id: notifId++,
@@ -154,7 +221,6 @@ export function FinanceProvider({ children }) {
                           channelId: 'finance_alerts',
                       });
                       
-                      // Increment
                       if (tx.frequency === 'weekly') current.setDate(current.getDate() + 7);
                       else if (tx.frequency === 'biweekly') current.setDate(current.getDate() + 14);
                       else if (tx.frequency === 'yearly') current.setFullYear(current.getFullYear() + 1);
@@ -164,24 +230,21 @@ export function FinanceProvider({ children }) {
             });
         }
 
-        // --- 2. LOAN DUE DATES (Manual Payments) ---
+        // 2. LOAN DUE DATES
         if (settings.notifications.loan_dates) {
            const bufferDays = parseInt(settings.notifications.loan_notify_days || 0);
            
            credits.filter(c => !c.autopay && c.dueDate).forEach(c => {
-               // FIX: Use getLocalDate
                const savedDate = getLocalDate(c.dueDate);
                const dayOfMonth = savedDate.getDate();
 
-               let current = new Date(); // Start Today
+               let current = new Date();
                current.setDate(dayOfMonth);
                current.setHours(userHour, userMinute, 0, 0);
                
-               // Calculate notification moment
                let notifyTime = new Date(current);
                notifyTime.setDate(current.getDate() - bufferDays);
 
-               // If that moment passed, move to next month
                if (notifyTime < now) {
                    current.setMonth(current.getMonth() + 1);
                }
@@ -204,12 +267,11 @@ export function FinanceProvider({ children }) {
            });
         }
 
-        // --- 3. AUTOPAY ALERTS (Automatic) ---
+        // 3. AUTOPAY ALERTS
         if (settings.notifications.autopay) {
-            const bufferDays = 0; // On the day
+            const bufferDays = 0; 
 
             credits.filter(c => c.autopay && c.dueDate).forEach(c => {
-                // FIX: Use getLocalDate
                 const savedDate = getLocalDate(c.dueDate);
                 const dayOfMonth = savedDate.getDate();
 
@@ -254,8 +316,18 @@ export function FinanceProvider({ children }) {
     scheduleNotifications();
   }, [transactions, credits, categories, settings.notifications]); 
 
-  // ... Actions ...
-  const addTransaction = (tx) => setTransactions(prev => [{ ...tx, id: generateId(), createdAt: new Date().toISOString() }, ...prev]);
+  // --- ACTIONS ---
+  const addTransaction = (tx) => {
+      // Ensure recurring items get a family ID (recurringId)
+      const newItem = { 
+          ...tx, 
+          id: generateId(), 
+          createdAt: new Date().toISOString(),
+          recurringId: tx.isRecurring ? generateId() : undefined // Set root recurringId
+      };
+      setTransactions(prev => [newItem, ...prev]);
+  };
+
   const updateTransaction = (id, tx) => setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...tx } : t));
   const deleteTransaction = (id) => setTransactions(prev => prev.filter(t => t.id !== id));
   const addCredit = (c) => setCredits(prev => [...prev, { id: generateId(), history: [], ...c }]);
@@ -295,7 +367,9 @@ export function FinanceProvider({ children }) {
             const cat = categories.find(c => c.id === tx.categoryId || c.name === tx.category);
             return cat && cat.notificationsEnabled === true;
         }).filter(tx => {
-            const txDate = new Date(tx.date);
+            // Check logic same as generator to see if TODAY is a recurrence
+            // But simple check: just convert to date
+            const txDate = getLocalDate(tx.date);
             return txDate.getDate() === todayDay; 
         }).map(tx => ({
             id: tx.id, category: tx.category, note: tx.notes || 'Payment Due', amount: tx.amount, type: 'bill',
@@ -306,7 +380,7 @@ export function FinanceProvider({ children }) {
     if (settings.notifications.loan_dates) {
         const bufferDays = parseInt(settings.notifications.loan_notify_days || 0);
         const loanAlerts = credits.filter(c => c.dueDate).filter(c => {
-            const d = new Date(c.dueDate); 
+            const d = getLocalDate(c.dueDate); 
             const triggerDay = d.getDate() - bufferDays;
             return todayDay === triggerDay; 
         }).map(c => ({
