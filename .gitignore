@@ -41,7 +41,11 @@ captures/
 *.aab
 *.apk
 output-metadata.json
-
+android/
+node_modules/
+assets/
+public/
+dist/
 # IntelliJ
 *.iml
 .idea/

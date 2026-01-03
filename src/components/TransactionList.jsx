@@ -1,49 +1,36 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Trash2, Filter, X, Edit2 } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
-import { format, isSameMonth, isSameWeek, subMonths, parseISO } from 'date-fns';
+import { Plus, Trash2, Filter, X, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFinance } from '../contexts/FinanceContext';
+import { format, subMonths, addMonths, isSameMonth, parseISO } from 'date-fns';
+import { cn } from '../lib/utils';
 import TransactionForm from './TransactionForm';
 
-export default function TransactionList({ type }) {
+export default function TransactionList({ type = 'expense' }) {
   const { transactions, deleteTransaction, formatCurrency, categories, t } = useFinance();
   
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [timeFilter, setTimeFilter] = useState('This Month'); 
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const isExpense = type === 'expense';
+  const availableCategories = useMemo(() => {
+    return categories.filter(c => c.type === type);
+  }, [categories, type]);
 
-  // --- FILTER LOGIC ---
-  const visibleTransactions = useMemo(() => {
-    const now = new Date();
+  const filteredTransactions = useMemo(() => {
     return transactions
-      .filter(tr => {
-        if (tr.type !== type) return false;
-        const txDate = parseISO(tr.date);
-        
-        if (timeFilter === 'This Week') return isSameWeek(txDate, now, { weekStartsOn: 1 });
-        if (timeFilter === 'This Month') return isSameMonth(txDate, now);
-        if (timeFilter === 'Last 6 Months') return txDate >= subMonths(now, 6);
-        
-        return true;
+      .filter(t => t.type === type)
+      .filter(t => {
+        const txDate = parseISO(t.date);
+        const matchesMonth = isSameMonth(txDate, currentDate);
+        const matchesCategory = selectedCategory === 'All' || t.category === selectedCategory;
+        return matchesMonth && matchesCategory;
       })
       .sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [transactions, type, timeFilter]);
+  }, [transactions, currentDate, type, selectedCategory]);
 
-  const getCategoryStyles = (transaction) => {
-    let cat = categories.find(c => c.id === transaction.categoryId);
-    if (!cat && transaction.category) {
-      cat = categories.find(c => c.name === transaction.category);
-    }
-    const iconName = cat?.icon || 'Tag'; 
-    const Icon = LucideIcons[iconName] ? LucideIcons[iconName] : LucideIcons.Tag;
-    const color = cat?.color || '#94a3b8';
-    
-    return { Icon, color };
-  };
+  const totalAmount = filteredTransactions.reduce((acc, curr) => acc + parseFloat(curr.amount), 0);
 
   const handleAddNew = () => { setEditingItem(null); setIsFormOpen(true); };
 
@@ -61,129 +48,117 @@ export default function TransactionList({ type }) {
   };
 
   return (
-    <div className="space-y-6 pb-24 animate-in fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between sticky top-0 bg-slate-50 dark:bg-slate-900 py-4 z-10">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white capitalize">{t(type === 'income' ? 'income' : 'expenses')}</h1>
-        <div className="flex gap-2">
-          <button onClick={() => setShowFilters(!showFilters)} className={`p-2 rounded-lg border ${showFilters ? 'bg-blue-100 border-blue-500 text-blue-600' : 'bg-white border-slate-200 text-slate-500'}`}>
-             <Filter className="w-5 h-5" />
-          </button>
-          <button onClick={handleAddNew} className={`p-2 text-white rounded-lg shadow-md ${isExpense ? 'bg-rose-600' : 'bg-emerald-600'}`}>
-            <Plus className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="h-full flex flex-col pb-20 animate-in fade-in relative">
+      
+      <div className="flex items-center justify-between p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-4">
+        <button onClick={() => setCurrentDate(prev => subMonths(prev, 1))} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all">
+          <ChevronLeft className="w-5 h-5 text-slate-500" />
+        </button>
+        <h2 className="font-bold text-slate-700 dark:text-white text-lg">
+          {format(currentDate, 'MMMM yyyy')}
+        </h2>
+        <button onClick={() => setCurrentDate(prev => addMonths(prev, 1))} className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all">
+          <ChevronRight className="w-5 h-5 text-slate-500" />
+        </button>
       </div>
 
-      {/* Filter Panel */}
-      {showFilters && (
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 animate-in slide-in-from-top-2">
-           <p className="text-xs font-bold text-slate-400 uppercase mb-2">Time Period</p>
-           <div className="flex gap-2">
-             {['This Week', 'This Month', 'Last 6 Months'].map(f => (
-               <button key={f} onClick={() => setTimeFilter(f)} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${timeFilter === f ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>
-                 {f}
-               </button>
-             ))}
-           </div>
-        </div>
-      )}
+      <div className={cn("p-6 rounded-3xl mb-4 text-white shadow-lg transition-colors", type === 'income' ? "bg-emerald-500" : "bg-blue-600")}>
+        <p className="text-blue-100 text-xs font-bold uppercase tracking-wider mb-1">
+            {selectedCategory === 'All' ? `Total ${type === 'income' ? 'Income' : 'Expenses'}` : `${selectedCategory} Total`}
+        </p>
+        <h1 className="text-4xl font-black tracking-tight">{formatCurrency(totalAmount)}</h1>
+      </div>
 
-      {/* List Rendering */}
-      <div className="space-y-3">
-        {visibleTransactions.length === 0 ? (
-           <p className="text-center text-slate-400 py-10">No transactions found.</p>
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-2 no-scrollbar -mx-2 px-2">
+         <button 
+           onClick={() => setSelectedCategory('All')}
+           className={cn(
+             "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm border",
+             selectedCategory === 'All' 
+               ? (type === 'income' ? "bg-emerald-600 text-white border-emerald-600" : "bg-blue-600 text-white border-blue-600")
+               : "bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700"
+           )}
+         >
+           All
+         </button>
+         {availableCategories.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.name)}
+              className={cn(
+                "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm border flex items-center gap-2",
+                selectedCategory === cat.name
+                  ? (type === 'income' ? "bg-emerald-600 text-white border-emerald-600" : "bg-blue-600 text-white border-blue-600")
+                  : "bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700"
+              )}
+            >
+              <div className={cn("w-2 h-2 rounded-full", selectedCategory === cat.name ? "bg-white" : "")} style={{ backgroundColor: selectedCategory === cat.name ? undefined : cat.color }} />
+              {cat.name}
+            </button>
+         ))}
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+        {filteredTransactions.length === 0 ? (
+          <div className="text-center py-10 text-slate-400">
+            <Filter className="w-12 h-12 mx-auto mb-2 opacity-20" />
+            <p className="text-sm font-bold opacity-50">No transactions found</p>
+          </div>
         ) : (
-           visibleTransactions.map(tr => {
-              const { Icon, color } = getCategoryStyles(tr);
-              
-              return (
-                <div 
-                  key={tr.id} 
-                  onClick={() => setSelectedItem(tr)} 
-                  className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm flex justify-between items-center cursor-pointer active:scale-[0.98] transition-transform"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm" style={{ backgroundColor: color }}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      {/* Category Name */}
-                      <span className="font-bold text-slate-900 dark:text-white block">
-                        {categories.find(c => c.id === tr.categoryId)?.name || tr.category || "Uncategorized"}
-                      </span>
-                      
-                      {/* --- NEW: Show Notes Below Category --- */}
-                      {tr.notes && (
-                        <span className="text-xs text-slate-500 dark:text-slate-400 block mb-0.5 line-clamp-1 italic">
-                          {tr.notes}
-                        </span>
-                      )}
+          filteredTransactions.map(t => {
+             const cat = categories.find(c => c.name === t.category) || {};
+             
+             // Smart frequency detection for badge
+             const familyId = t.recurringId || (t.isRecurring ? t.id : null);
+             const parent = familyId ? transactions.find(tx => tx.id === familyId && tx.isRecurring) : null;
+             const frequency = parent?.frequency || t.frequency;
 
-                      {/* Date */}
-                      <span className="text-xs text-slate-400">{format(parseISO(tr.date), 'MMM dd, yyyy')}</span>
-                    </div>
+             const freqDisplay = frequency ? {
+               weekly: 'Weekly',
+               biweekly: 'Bi-Weekly',
+               monthly: 'Monthly',
+               yearly: 'Yearly'
+             }[frequency] : null;
+
+             return (
+              <div key={t.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center justify-between group active:scale-98 transition-transform">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm text-lg" style={{ backgroundColor: cat.color || '#94a3b8' }}>
+                    {t.category.charAt(0)}
                   </div>
-                  <div className="text-right">
-                     <span className={`block font-bold ${isExpense ? 'text-rose-600' : 'text-emerald-600'}`}>
-                       {isExpense ? '-' : '+'}{formatCurrency(tr.amount)}
-                     </span>
+                  <div>
+                    <h3 className="font-bold text-slate-900 dark:text-white">{t.category}</h3>
+                    <p className="text-xs text-slate-400 font-medium flex items-center gap-2 flex-wrap">
+                        {format(parseISO(t.date), 'MMM dd')}
+                        {freqDisplay && (
+                          <span className="text-xs font-bold px-2 py-0.5 rounded-full text-purple-600 bg-purple-50 dark:bg-purple-900/30">
+                            {freqDisplay}
+                          </span>
+                        )}
+                    </p>
                   </div>
                 </div>
-              );
-           })
+                <div className="text-right">
+                  <span className={cn("block font-black text-lg", type === 'income' ? "text-emerald-500" : "text-slate-900 dark:text-white")}>
+                    {type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                  </span>
+                  <div className="flex gap-3 justify-end mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => handleEdit(t)} className="text-blue-400 hover:text-blue-600"><Edit2 className="w-4 h-4"/></button>
+                    <button onClick={() => handleDelete(t.id)} className="text-slate-300 hover:text-rose-500"><Trash2 className="w-4 h-4"/></button>
+                  </div>
+                </div>
+              </div>
+             );
+          })
         )}
       </div>
 
-      {/* Detail Modal */}
-      {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setSelectedItem(null)}>
-           <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-              
-              <div className="flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-800">
-                <h3 className="font-bold text-slate-900 dark:text-white">Details</h3>
-                <button onClick={() => setSelectedItem(null)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full"><X className="w-4 h-4"/></button>
-              </div>
-
-              <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/50">
-                 <h1 className={`text-4xl font-black mb-2 ${isExpense ? 'text-rose-600' : 'text-emerald-600'}`}>
-                   {formatCurrency(selectedItem.amount)}
-                 </h1>
-                 <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                   {categories.find(c => c.id === selectedItem.categoryId)?.name || selectedItem.category}
-                 </span>
-              </div>
-
-              <div className="p-6 space-y-4">
-                 <div className="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                    <span className="text-sm text-slate-500">Date</span>
-                    <span className="font-bold text-slate-900 dark:text-white">{format(parseISO(selectedItem.date), 'MMMM dd, yyyy')}</span>
-                 </div>
-                 {selectedItem.notes && (
-                   <div className="pt-2">
-                      <span className="text-xs text-slate-400 uppercase font-bold block mb-2">Notes</span>
-                      <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl">{selectedItem.notes}</p>
-                   </div>
-                 )}
-              </div>
-
-              <div className="p-4 flex gap-3 border-t border-slate-100 dark:border-slate-800">
-                 <button 
-                   onClick={() => handleEdit(selectedItem)} 
-                   className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl flex justify-center items-center gap-2"
-                 >
-                   <Edit2 className="w-4 h-4" /> Edit
-                 </button>
-                 <button 
-                   onClick={() => handleDelete(selectedItem.id)} 
-                   className="flex-1 py-3 bg-rose-50 text-rose-600 font-bold rounded-xl flex justify-center items-center gap-2 hover:bg-rose-100"
-                 >
-                   <Trash2 className="w-4 h-4" /> Delete
-                 </button>
-              </div>
-           </div>
-        </div>
-      )}
+      <button 
+        onClick={handleAddNew} 
+        className={cn("fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-white transition-transform hover:scale-110 active:scale-90 z-40", type === 'income' ? "bg-emerald-500 shadow-emerald-500/40" : "bg-blue-600 shadow-blue-600/40")}
+      >
+        <Plus className="w-8 h-8" />
+      </button>
 
       {isFormOpen && (
         <TransactionForm 
