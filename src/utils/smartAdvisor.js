@@ -25,6 +25,16 @@ export const analyzeFinances = (transactions, credits, stats) => {
      });
   }
 
+  // Add to function
+if (text.includes('cut') || text.includes('save more')) {
+  const topExpenses = transactions
+    .filter(t => t.type === 'expense')
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 3)
+    .map(t => `${t.category}: $${t.amount}`);
+  return { text: `Top areas to cut: ${topExpenses.join(', ')}. Reduce by 10% to save extra.`, sender: 'bot' };
+}
+
   // 2. Check Debt (High Utilization)
   const highUtilCards = credits.filter(c => {
       // Handle 'limit' OR 'totalAmount' (CreditStepper uses totalAmount)

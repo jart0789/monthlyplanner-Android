@@ -107,10 +107,14 @@ export function FinanceProvider({ children }) {
     root.classList.remove('light', 'dark');
     if (settings.theme === 'dark') root.classList.add('dark');
     else root.classList.add('light');
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, credits, categories, settings }));
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, credits, categories, settings }));
+    } catch (e) {
+      console.error("Storage error:", e);
+    }
   }, [settings.theme, transactions, credits, categories, settings]);
 
-  // --- RECURRING GENERATOR ENGINE ---
+  // --- RECURRING GENERATOR ENGINE (with endDate) ---
   useEffect(() => {
     const processRecurring = () => {
       const today = new Date();
@@ -140,6 +144,7 @@ export function FinanceProvider({ children }) {
         let nextDate = new Date(parseISO(latestTx.date));
 
         const freq = (parent.frequency || 'monthly').toLowerCase();
+        const endDate = parent.endDate ? parseISO(parent.endDate) : null; // New: Finite end
         let iterations = 0;
         const maxIterations = 36;
 
@@ -157,6 +162,9 @@ export function FinanceProvider({ children }) {
             const daysInMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
             if (nextDate.getDate() > daysInMonth) nextDate.setDate(daysInMonth);
           }
+
+          // New: Stop if past endDate
+          if (endDate && nextDate > endDate) break;
 
           const nextYear = nextDate.getFullYear();
           const nextMonth = nextDate.getMonth();
@@ -199,6 +207,24 @@ export function FinanceProvider({ children }) {
     const timer = setTimeout(processRecurring, 1000);
     return () => clearTimeout(timer);
   }, [transactions.length]);
+
+  // New: Auto-Pay Generator (runs daily)
+  useEffect(() => {
+    const processAutoPay = () => {
+      const today = new Date();
+      credits.forEach(c => {
+        if (c.autopay && c.dueDate) {
+          const due = getLocalDate(c.dueDate);
+          if (isSameDay(today, due)) {
+            recordCreditPayment(c.id, c.minPayment, today.toISOString(), 'Auto-Pay');
+          }
+        }
+      });
+    };
+    processAutoPay(); // Run on load
+    const interval = setInterval(processAutoPay, 86400000); // Daily
+    return () => clearInterval(interval);
+  }, [credits]);
 
   // --- NOTIFICATIONS (Standard) ---
   useEffect(() => {
@@ -264,9 +290,74 @@ export function FinanceProvider({ children }) {
             });
         }
 
-        if (settings.notifications.loan_dates || settings.notifications.autopay) {
-          // (Your existing loan and autopay notification logic here - unchanged)
-          // Omitted for brevity, but keep it exactly as in your working version
+        if (settings.notifications.loan_dates) {
+           const bufferDays = parseInt(settings.notifications.loan_notify_days || 0);
+           credits.filter(c => !c.autopay && c.dueDate).forEach(c => {
+               const savedDate = getLocalDate(c.dueDate);
+               const dayOfMonth = savedDate.getDate();
+
+               let current = new Date();
+               current.setDate(dayOfMonth);
+               current.setHours(userHour, userMinute, 0, 0);
+               
+               let notifyTime = new Date(current);
+               notifyTime.setDate(current.getDate() - bufferDays);
+
+               if (notifyTime < now) {
+                   current.setMonth(current.getMonth() + 1);
+               }
+
+               for(let i=0; i<6; i++) {
+                   notifyTime = new Date(current);
+                   notifyTime.setDate(current.getDate() - bufferDays);
+                   
+                   if (notifyTime > now) {
+                       notificationsToSchedule.push({
+                           id: notifId++,
+                           title: `Payment Due`,
+                           body: `Payment for ${c.name} is due in ${bufferDays} days.`,
+                           schedule: { at: notifyTime, allowWhileIdle: true }, 
+                           channelId: 'finance_alerts',
+                       });
+                   }
+                   current.setMonth(current.getMonth() + 1);
+               }
+           });
+        }
+
+        if (settings.notifications.autopay) {
+            const bufferDays = 0; 
+            credits.filter(c => c.autopay && c.dueDate).forEach(c => {
+                const savedDate = getLocalDate(c.dueDate);
+                const dayOfMonth = savedDate.getDate();
+
+                let current = new Date();
+                current.setDate(dayOfMonth);
+                current.setHours(userHour, userMinute, 0, 0);
+
+                let notifyTime = new Date(current);
+                notifyTime.setDate(current.getDate() - bufferDays);
+
+                if (notifyTime < now) {
+                    current.setMonth(current.getMonth() + 1);
+                }
+
+                for(let i=0; i<6; i++) {
+                    notifyTime = new Date(current);
+                    notifyTime.setDate(current.getDate() - bufferDays);
+
+                    if (notifyTime > now) {
+                        notificationsToSchedule.push({
+                            id: notifId++,
+                            title: `Upcoming Autopay`,
+                            body: `${c.name} will be autopaid today. Ensure funds are available.`,
+                            schedule: { at: notifyTime, allowWhileIdle: true },
+                            channelId: 'finance_alerts',
+                        });
+                    }
+                    current.setMonth(current.getMonth() + 1);
+                }
+            });
         }
 
         if (notificationsToSchedule.length > 0) {

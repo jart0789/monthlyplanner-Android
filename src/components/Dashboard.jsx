@@ -259,6 +259,7 @@ export default function Dashboard() {
         <div className="h-64 w-full">
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
+              <Tooltip formatter={(value) => `${formatCurrency(value)} (${(value / stats.totalExpenses * 100).toFixed(1)}%)`} />
               <PieChart>
                 <Pie data={chartData} innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
                   {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}

@@ -19,6 +19,18 @@ export default function TransactionForm({ type, existingData, onClose }) {
   const isExpense = type === 'expense';
   const availableCategories = categories.filter(c => c.type === type);
 
+// In state
+const [endDate, setEndDate] = useState('');
+
+// In form
+<div className="mb-6">
+  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">End Date (Optional)</label>
+  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-medium text-slate-700 dark:text-white outline-none" />
+</div>
+
+// In handleSave, add to transactionData
+endDate: endDate ? new Date(endDate).toISOString() : null
+  
   useEffect(() => {
     if (existingData) {
       setAmount(existingData.amount);
