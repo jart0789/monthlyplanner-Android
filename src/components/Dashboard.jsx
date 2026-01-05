@@ -1,6 +1,5 @@
-//
 import React, { useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, CreditCard, Calendar, AlertCircle, Lightbulb, MessageSquare, Bell, Check, X, ArrowRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, CreditCard, Calendar, AlertCircle, Lightbulb, MessageSquare, Bell, Check, X } from 'lucide-react';
 import { useFinance } from '../contexts/FinanceContext';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { format, parseISO, isSameMonth, startOfDay, subDays } from 'date-fns';
@@ -14,8 +13,6 @@ const COLORS = ['#0cb606ff', '#F43F5E', '#3B82F6', '#F59E0B', '#8B5CF6', '#6366f
 export default function Dashboard() {
   const { transactions, credits, formatCurrency, t, dailyReminders, dismissReminder } = useFinance();
   const [isChatOpen, setIsChatOpen] = useState(false);
-  
-  // --- NEW: STATE FOR AI STACK ---
   const [dismissedAdvice, setDismissedAdvice] = useState([]);
   
   const today = new Date();
@@ -34,7 +31,6 @@ export default function Dashboard() {
     setTouchEnd(e.targetTouches[0].clientX);
   };
 
-  // Handler for Notification Stack (Top)
   const onNotificationTouchEnd = (id) => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
@@ -43,7 +39,6 @@ export default function Dashboard() {
     }
   };
 
-  // Handler for AI Advisor Stack (Bottom)
   const onAdvisorTouchEnd = (id) => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
@@ -52,7 +47,7 @@ export default function Dashboard() {
     }
   };
 
-  // --- STATS CALCULATIONS (Standard) ---
+  // --- STATS CALCULATIONS ---
   const getMonthlyValue = (transaction) => {
     const amount = parseFloat(transaction.amount);
     if (transaction.isRecurring) {
@@ -63,11 +58,12 @@ export default function Dashboard() {
             default: return amount; 
         }
     }
-    if (isSameMonth(parseISO(transaction.date), today)) { return amount; }
-    return 0;
+    // Non-recurring: only count if in current month (handled by stats logic below)
+    return amount;
   };
 
   const stats = useMemo(() => {
+    // 1. Calculate Actual Cash Flow (Last 30 Days)
     const startLast30 = subDays(today, 30);
     const recentTxs = transactions.filter(t => {
       const d = parseISO(t.date);
@@ -77,28 +73,80 @@ export default function Dashboard() {
     const recentExpense = recentTxs.filter(t => t.type === 'expense').reduce((acc, t) => acc + parseFloat(t.amount), 0);
     const currentFlow = recentIncome - recentExpense;
 
-    const monthlyIncome = transactions.filter(t => t.type === 'income' && t.isRecurring).reduce((acc, t) => acc + getMonthlyValue(t), 0);
-    const recurringExpenses = transactions.filter(t => t.type === 'expense' && t.isRecurring).reduce((acc, t) => acc + getMonthlyValue(t), 0);
-    const monthlyDebtMin = credits.reduce((acc, c) => acc + (parseFloat(c.minPayment) || 0), 0);
+    // 2. Calculate PROJECTION (Budget)
+    // FIX: Deduplicate recurring items. Only take the LATEST definition of each series.
+    const uniqueRecurring = [];
+    const seenFamilies = new Set();
+    
+    // Sort new to old so we grab the latest version first
+    const sortedTxs = [...transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+    sortedTxs.forEach(t => {
+        if (t.isRecurring) {
+            // Group by recurringId (if generated) or fallback to its own id
+            const familyId = t.recurringId || t.id;
+            if (!seenFamilies.has(familyId)) {
+                seenFamilies.add(familyId);
+                uniqueRecurring.push(t);
+            }
+        }
+    });
+
+    const monthlyIncome = uniqueRecurring
+      .filter(t => t.type === 'income')
+      .reduce((acc, t) => acc + getMonthlyValue(t), 0);
+
+    const recurringExpenses = uniqueRecurring
+      .filter(t => t.type === 'expense')
+      .reduce((acc, t) => acc + getMonthlyValue(t), 0);
+
+  const monthlyDebtMin = credits.reduce((acc, c) => {
+      const balance = parseFloat(c.currentBalance || 0);
+      const minPayment = parseFloat(c.minPayment || 0);
+      return balance > 0 ? acc + minPayment : acc;
+    }, 0);
     const totalMonthlyObligations = recurringExpenses + monthlyDebtMin;
     const netForecast = monthlyIncome - totalMonthlyObligations;
     const totalDebt = credits.reduce((acc, c) => acc + (parseFloat(c.currentBalance || c.totalAmount) || 0), 0);
 
     let projectedSavingsRate = 0;
-    if (monthlyIncome > 0) { projectedSavingsRate = (netForecast / monthlyIncome) * 100; } 
-    else if (totalMonthlyObligations > 0) { projectedSavingsRate = -100; }
+    if (monthlyIncome > 0) {
+        projectedSavingsRate = (netForecast / monthlyIncome) * 100;
+    } else if (totalMonthlyObligations > 0) {
+        projectedSavingsRate = -100; 
+    }
 
     return { monthlyIncome, recurringExpenses, monthlyDebtMin, totalMonthlyObligations, netForecast, currentFlow, projectedSavingsRate, monthlyExpenses: recentExpense, totalDebt };
   }, [transactions, credits]);
 
   const freeCashPercent = stats.monthlyIncome > 0 ? Math.round(((stats.netForecast) / stats.monthlyIncome) * 100) : 0;
 
+  // Chart Data: Also needs to use Unique Recurring items to avoid duplication
   const chartData = useMemo(() => {
     const groups = {};
-    transactions.filter(t => t.type === 'expense' && t.isRecurring).forEach(t => {
-        const val = getMonthlyValue(t);
-        if (val > 0) { const catName = t.category || 'Uncategorized'; groups[catName] = (groups[catName] || 0) + val; }
+    const uniqueRecurring = [];
+    const seenFamilies = new Set();
+    
+    // Same deduplication logic for the chart
+    const sortedTxs = [...transactions].sort((a,b) => new Date(b.date) - new Date(a.date));
+    sortedTxs.forEach(t => {
+        if (t.isRecurring && t.type === 'expense') {
+            const familyId = t.recurringId || t.id;
+            if (!seenFamilies.has(familyId)) {
+                seenFamilies.add(familyId);
+                uniqueRecurring.push(t);
+            }
+        }
     });
+
+    uniqueRecurring.forEach(t => {
+        const val = getMonthlyValue(t);
+        if (val > 0) { 
+            const catName = t.category || 'Uncategorized'; 
+            groups[catName] = (groups[catName] || 0) + val; 
+        }
+    });
+    
     if (stats.monthlyDebtMin > 0) groups['Debt Repayment'] = stats.monthlyDebtMin;
     return Object.keys(groups).map(k => ({ name: k, value: groups[k] })).sort((a, b) => b.value - a.value);
   }, [transactions, stats.monthlyDebtMin]);
@@ -107,6 +155,8 @@ export default function Dashboard() {
     const list = [];
     const nextTwoWeeks = new Date();
     nextTwoWeeks.setDate(today.getDate() + 14);
+    
+    // Credits
     credits.forEach(c => {
       if (!c.dueDate) return;
       const due = parseISO(c.dueDate);
@@ -114,22 +164,34 @@ export default function Dashboard() {
         list.push({ id: c.id, title: c.name, date: c.dueDate, amount: c.minPayment, type: 'credit' });
       }
     });
+    
+    // Bills (Using actual dates from recurring items)
+    // We only look at active recurring items and check if their "Next Occurrence" falls in window
     transactions.filter(t => t.type === 'expense' && t.isRecurring).forEach(t => {
         const txDate = parseISO(t.date);
-        let nextDate = new Date(today.getFullYear(), today.getMonth(), txDate.getDate());
-        if (nextDate < startOfDay(today)) nextDate.setMonth(nextDate.getMonth() + 1);
-        if (nextDate >= startOfDay(today) && nextDate <= nextTwoWeeks) {
+        // Logic to project next date from start date
+        let nextDate = new Date(txDate);
+        const now = startOfDay(today);
+        
+        // Fast forward to today
+        while (nextDate < now) {
+            if (t.frequency === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
+            else if (t.frequency === 'biweekly') nextDate.setDate(nextDate.getDate() + 14);
+            else if (t.frequency === 'yearly') nextDate.setFullYear(nextDate.getFullYear() + 1);
+            else nextDate.setMonth(nextDate.getMonth() + 1);
+        }
+
+        if (nextDate >= now && nextDate <= nextTwoWeeks) {
           list.push({ id: t.id, title: t.category, date: nextDate.toISOString(), amount: t.amount, type: 'bill' });
         }
       });
     return list.sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [credits, transactions]);
 
-  // --- AI ADVISOR VISUAL LOGIC ---
+  // --- AI ADVISOR ---
   const visibleAdvice = useMemo(() => {
     const insights = analyzeFinances(transactions, credits, stats);
     
-    // Map to visual styles
     const processed = insights.map((insight, index) => {
         let gradient = "from-blue-600 to-blue-500"; 
         let icon = Lightbulb;
@@ -167,7 +229,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* --- 1. NOTIFICATION DECK (Restored from your upload) --- */}
+      {/* 1. NOTIFICATIONS */}
       {dailyReminders && dailyReminders.length > 0 && (
         <div className="relative h-32 w-full mb-6 z-30">
            {dailyReminders.map((reminder, index) => {
@@ -223,7 +285,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* --- 2. SUMMARY CARDS --- */}
+      {/* 2. SUMMARY CARDS */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-sm">
           <div className="mx-auto w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2"><TrendingUp className="w-4 h-4"/></div>
@@ -242,7 +304,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* --- 3. FORECAST CHART --- */}
+      {/* 3. FORECAST CHART */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
         <div className="text-center mb-6">
           <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Projected Monthly Budget</p>
@@ -259,7 +321,6 @@ export default function Dashboard() {
         <div className="h-64 w-full">
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <Tooltip formatter={(value) => `${formatCurrency(value)} (${(value / stats.totalExpenses * 100).toFixed(1)}%)`} />
               <PieChart>
                 <Pie data={chartData} innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
                   {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
@@ -274,7 +335,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* --- 4. UPCOMING BILLS LIST --- */}
+      {/* 4. UPCOMING BILLS */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800">
           <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -303,12 +364,11 @@ export default function Dashboard() {
         </div>
       </div>
       
-      {/* --- 5. NEW SWIPEABLE AI ADVISOR DECK --- */}
+      {/* 5. AI ADVISOR */}
       <div className="relative z-10 min-h-[140px] mb-6">
         {!isAdvisorEmpty ? (
            <div className="relative h-32 w-full">
              {visibleAdvice.map((advice, index) => {
-                // Only render top 3
                 if (index > 2) return null;
                 const isTop = index === 0;
                 const scale = 1 - (index * 0.04);
@@ -328,7 +388,7 @@ export default function Dashboard() {
                     }}
                     className={cn(
                         "absolute inset-0 p-5 rounded-2xl shadow-xl transition-all duration-300 ease-out flex items-center justify-between bg-gradient-to-r text-white",
-                        advice.gradient // Stylish gradient based on type
+                        advice.gradient 
                     )}
                   >
                     <div className="flex items-center gap-4">
@@ -342,8 +402,6 @@ export default function Dashboard() {
                           <p className="text-sm text-white/90 leading-snug mt-1 font-medium">{advice.text}</p>
                        </div>
                     </div>
-                    
-                    {/* Close Button on Top Card */}
                     {isTop && (
                        <button onClick={() => setDismissedAdvice(prev => [...prev, advice.id])} className="p-2 bg-white/20 hover:bg-white/30 rounded-full text-white backdrop-blur-sm transition-colors absolute top-3 right-3">
                           <X className="w-4 h-4"/>
@@ -354,7 +412,6 @@ export default function Dashboard() {
              })}
            </div>
         ) : (
-           // Empty State (Clean & Stylish)
            <div className="p-5 rounded-2xl flex items-center gap-4 border border-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700 shadow-sm">
               <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl">
                  <Check className="w-6 h-6" />
@@ -367,7 +424,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* --- FLOATING CHAT BUTTON --- */}
       <button 
         onClick={() => setIsChatOpen(true)}
         className="fixed bottom-32 right-4 p-4 bg-indigo-600 text-white rounded-full shadow-2xl hover:bg-indigo-700 transition-transform active:scale-90 z-[60] flex items-center gap-2 font-bold"
@@ -376,9 +432,7 @@ export default function Dashboard() {
         <span className="hidden sm:inline">Ask AI</span>
       </button>
 
-      {/* CHAT MODAL */}
       {isChatOpen && <AdvisorChat onClose={() => setIsChatOpen(false)} visibleStats={stats} />}
-
     </div>
   );
 }

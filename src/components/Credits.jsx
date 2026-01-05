@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '../lib/utils';
-import { CreditCard, Landmark, Plus, Trash2, X, History, Pencil, ChevronDown } from 'lucide-react';
+import { CreditCard, Landmark, Plus, Trash2, X, History, Pencil, ChevronDown, AlertCircle } from 'lucide-react';
 import { useFinance } from '../contexts/FinanceContext';
 import { format, parseISO, isSameDay, addMonths, isAfter } from 'date-fns';
 import CreditStepper from './CreditStepper';
 
+  
 // --- DETAIL MODAL ---
 const CreditDetailModal = ({ credit, onClose, onDelete, formatCurrency }) => {
   const { recordCreditPayment } = useFinance();
@@ -14,16 +15,26 @@ const CreditDetailModal = ({ credit, onClose, onDelete, formatCurrency }) => {
   
   const [payAmount, setPayAmount] = useState('');
 
-  // VALIDATION: Prevent payment > balance
+  // VALIDATION: Prevent payment > balance — strict block
   const handlePayment = () => {
-    if (!payAmount) return;
-    const amount = parseFloat(payAmount);
-
-    if (amount > balance) {
-        alert(`Error: Payment amount (${formatCurrency(amount)}) cannot exceed current balance (${formatCurrency(balance)}).`);
-        return;
+    if (!payAmount || payAmount.trim() === '') {
+      window.dispatchEvent(new CustomEvent('showToast', { detail: { message: 'Please enter a payment amount.', type: 'error' } }));
+      return;
     }
 
+    const amount = parseFloat(payAmount);
+
+    if (isNaN(amount) || amount <= 0) {
+      window.dispatchEvent(new CustomEvent('showToast', { detail: { message: 'Please enter a valid positive amount.', type: 'error' } }));
+      return;
+    }
+
+    if (amount > balance) {
+      window.dispatchEvent(new CustomEvent('showToast', { detail: { message: `Payment cannot exceed current balance of ${formatCurrency(balance)}.`, type: 'error' } }));
+      return;
+    }
+
+    // Success
     recordCreditPayment(credit.id, payAmount, new Date().toISOString(), 'Manual Payment');
     setPayAmount('');
     onClose();
@@ -50,7 +61,7 @@ const CreditDetailModal = ({ credit, onClose, onDelete, formatCurrency }) => {
             </div>
           </div>
 
-          <div className="p-6 overflow-y-auto">
+          <div className="p-6 overflow-y-auto flex-1">
              <div className="text-center mb-6">
                 <span className="text-sm text-slate-400 font-bold uppercase">Current Balance</span>
                 <h1 className="text-4xl font-black text-slate-900 dark:text-white mt-1">{formatCurrency(balance)}</h1>
@@ -61,6 +72,25 @@ const CreditDetailModal = ({ credit, onClose, onDelete, formatCurrency }) => {
                     <span>0%</span>
                     <span>{progress.toFixed(0)}% Utilization</span>
                 </div>
+             </div>
+
+             {/* Payment Input */}
+             <div className="mb-6">
+               <label className="block text-sm font-bold text-slate-600 dark:text-slate-300 mb-2">Enter Payment Amount</label>
+               <input
+                 type="number"
+                 value={payAmount}
+                 onChange={(e) => setPayAmount(e.target.value)}
+                 placeholder="0.00"
+                 className="w-full p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-lg font-bold text-center focus:border-blue-500 outline-none"
+                 step="0.01"
+               />
+               <button
+                 onClick={handlePayment}
+                 className="w-full mt-4 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-colors"
+               >
+                 Record Payment
+               </button>
              </div>
 
              <div>
@@ -90,16 +120,35 @@ const CreditDetailModal = ({ credit, onClose, onDelete, formatCurrency }) => {
 export default function Credits() {
   const { credits, deleteCredit, updateCredit, formatCurrency, t } = useFinance();
   const [isAdding, setIsAdding] = useState(false);
-  const [editingCredit, setEditingCredit] = useState(null); // --- NEW: Track editing item
+  const [editingCredit, setEditingCredit] = useState(null);
   const [selectedCredit, setSelectedCredit] = useState(null);
 
-  // --- 1. HANDLE MANUAL PAYMENTS ---
+  // --- TOAST STATE ---
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    const handleShowToast = (e) => {
+      setToast({ message: e.detail.message, type: e.detail.type || 'error' });
+      setTimeout(() => setToast(null), 6000);
+    };
+    window.addEventListener('showToast', handleShowToast);
+    return () => window.removeEventListener('showToast', handleShowToast);
+  }, []);
+
+  // --- HANDLE MANUAL PAYMENTS (strict validation) ---
   const processManualPayment = (credit, amount, note) => {
     const currentBalance = parseFloat(credit.currentBalance || 0);
-    if (currentBalance < amount || amount <= 0) {
-       alert(`Error: Payment amount (${formatCurrency(amount)}) cannot exceed current balance (${formatCurrency(currentBalance)}).`);
+
+    if (amount > currentBalance) {
+      window.dispatchEvent(new CustomEvent('showToast', { detail: { message: `Payment cannot exceed current balance of ${formatCurrency(currentBalance)}.` } }));
       return;
     }
+
+    if (amount <= 0) {
+      window.dispatchEvent(new CustomEvent('showToast', { detail: { message: 'Please enter a valid positive amount.' } }));
+      return;
+    }
+
     let newBalance = currentBalance - amount;
     if (newBalance < 0) newBalance = 0;
 
@@ -115,7 +164,7 @@ export default function Credits() {
     });
   };
 
-  // --- 2. HANDLE AUTOPAY ---
+  // --- HANDLE AUTOPAY (unchanged) ---
   const processAutopay = (credit) => {
     const currentBalance = parseFloat(credit.currentBalance || 0);
     const apr = parseFloat(credit.interestRate || credit.apr || 0);
@@ -139,7 +188,6 @@ export default function Credits() {
     });
   };
 
-  // --- CHECK FOR AUTOPAY DUE DATE ---
   useEffect(() => {
     const checkAutopay = () => {
       const today = new Date();
@@ -161,9 +209,17 @@ export default function Credits() {
     checkAutopay();
   }, [credits]);
 
+  // --- FIXED: Monthly Min only for credits with balance > 0 ---
   const stats = useMemo(() => {
-    const totalDebt = credits.reduce((acc, c) => acc + (parseFloat(c.currentBalance || c.totalAmount) || 0), 0);
-    const monthlyCommitment = credits.reduce((acc, c) => acc + (parseFloat(c.minPayment) || 0), 0);
+    const totalDebt = credits.reduce((acc, c) => acc + (parseFloat(c.currentBalance || 0)), 0);
+
+    // Only include minPayment if currentBalance > 0
+    const monthlyCommitment = credits.reduce((acc, c) => {
+      const balance = parseFloat(c.currentBalance || 0);
+      const minPayment = parseFloat(c.minPayment || 0);
+      return balance > 0 ? acc + minPayment : acc;
+    }, 0);
+
     return { totalDebt, monthlyCommitment };
   }, [credits]);
 
@@ -171,19 +227,18 @@ export default function Credits() {
     const label = credit.autopay ? `Enter EXTRA payment for ${credit.name}:` : `Enter payment for ${credit.name}:`;
     const defaultAmount = credit.autopay ? '' : credit.minPayment;
     const amountStr = prompt(label, defaultAmount);
-    if (amountStr && !isNaN(parseFloat(amountStr))) {
+    if (amountStr !== null && amountStr.trim() !== '' && !isNaN(parseFloat(amountStr))) {
       processManualPayment(credit, parseFloat(amountStr), credit.autopay ? 'Extra Payment' : 'Manual Payment');
     }
   };
 
-  // --- NEW: Helper to open Edit Mode ---
   const handleEditClick = (credit) => {
       setEditingCredit(credit);
       setIsAdding(true);
   };
 
   return (
-    <div className="space-y-6 pb-32 animate-in fade-in">
+    <div className="space-y-6 pb-32 animate-in fade-in relative">
       {/* Header */}
       <div className="flex justify-between items-center sticky top-0 bg-slate-50 dark:bg-slate-900 py-4 z-10">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('credits')}</h1>
@@ -268,6 +323,27 @@ export default function Credits() {
            );
         })}
       </div>
+
+      {/* Dismissible Toast Popup */}
+      {toast && (
+        <div className="fixed bottom-24 left-4 right-4 z-[999] animate-in slide-in-from-bottom duration-300">
+          <div className="max-w-sm mx-auto bg-rose-100 dark:bg-rose-900/50 border border-rose-300 dark:border-rose-700 rounded-2xl shadow-2xl flex items-center justify-between p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+              <div>
+                <p className="font-bold text-rose-800 dark:text-rose-300">Payment Error</p>
+                <p className="text-sm text-rose-700 dark:text-rose-400">{toast.message}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-200"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {isAdding && (
           <CreditStepper 
