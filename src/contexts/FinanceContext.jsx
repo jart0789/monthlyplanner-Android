@@ -5,7 +5,9 @@ import { parseISO, isSameDay } from 'date-fns';
 
 const FinanceContext = createContext(undefined);
 
-const NOTIFICATION_TIME = "06:00"; 
+// --- CONFIGURATION ---
+// Set your testing time here
+const NOTIFICATION_TIME = "14:50"; 
 
 const DEFAULT_CATEGORIES = [
   { id: 'c1', name: 'Housing', type: 'expense', icon: 'Home', color: '#3B82F6', notificationsEnabled: false },
@@ -31,7 +33,7 @@ const DEFAULT_SETTINGS = {
 const STORAGE_KEY = 'finance_data';
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-// Date Helper
+// --- HELPER: Fix Timezone Issues ---
 const getLocalDate = (dateStr) => {
     if (!dateStr) return new Date();
     const clean = dateStr.split('T')[0];
@@ -71,59 +73,22 @@ export function FinanceProvider({ children }) {
     return { ...DEFAULT_SETTINGS, ...saved, notifications: { ...DEFAULT_SETTINGS.notifications, ...safeNotifs } };
   });
 
-  const dailyReminders = useMemo(() => {
-     const today = new Date();
-     const todayDay = today.getDate();
-     const alerts = [];
-     if (settings.notifications.bill_reminders) {
-         const billAlerts = transactions.filter(tx => tx.isRecurring && tx.type === 'expense').filter(tx => {
-             const cat = categories.find(c => c.id === tx.categoryId || c.name === tx.category);
-             return cat && cat.notificationsEnabled === true;
-         }).filter(tx => {
-             const txDate = getLocalDate(tx.date);
-             return txDate.getDate() === todayDay; 
-         }).map(tx => ({
-             id: tx.id, category: tx.category, note: tx.notes || 'Payment Due', amount: tx.amount, type: 'bill',
-             icon: categories.find(c => c.id === tx.categoryId || c.name === tx.category)?.icon || 'AlertCircle'
-         }));
-         alerts.push(...billAlerts);
-     }
-     if (settings.notifications.loan_dates) {
-         const bufferDays = parseInt(settings.notifications.loan_notify_days || 0);
-         const loanAlerts = credits.filter(c => c.dueDate).filter(c => {
-             const d = getLocalDate(c.dueDate); 
-             const triggerDay = d.getDate() - bufferDays;
-             return todayDay === triggerDay; 
-         }).map(c => ({
-             id: c.id, category: c.name, note: `Due in ${bufferDays} days`, amount: c.minPayment || 0, type: 'loan', icon: 'CreditCard'
-         }));
-         alerts.push(...loanAlerts);
-     }
-     return alerts.filter(a => !dismissedReminders.includes(a.id));
-   }, [transactions, credits, categories, settings.notifications, dismissedReminders]);
-
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     if (settings.theme === 'dark') root.classList.add('dark');
     else root.classList.add('light');
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, credits, categories, settings }));
-    } catch (e) {
-      console.error("Storage error:", e);
-    }
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, credits, categories, settings }));
   }, [settings.theme, transactions, credits, categories, settings]);
 
-  // --- RECURRING GENERATOR ENGINE (NO endDate) ---
+  // --- 1. RECURRING GENERATOR ENGINE (WITH CHECKPOINTS) ---
   useEffect(() => {
     const processRecurring = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-
       let newItems = [];
+      let parentUpdates = [];
       let hasChanges = false;
 
       const groups = {};
@@ -139,77 +104,72 @@ export function FinanceProvider({ children }) {
         const parent = family.find(t => t.isRecurring);
         if (!parent) return;
 
-        family.sort((a, b) => parseISO(b.date) - parseISO(a.date));
-        const latestTx = family[0];
-        let nextDate = new Date(parseISO(latestTx.date));
-
+        // CHECKPOINT FIX: use lastGenerated to prevent regenerating deleted items
+        let baseDate = parent.lastGenerated ? parseISO(parent.lastGenerated) : parseISO(parent.date);
+        let nextDate = new Date(baseDate);
         const freq = (parent.frequency || 'monthly').toLowerCase();
         let iterations = 0;
-        const maxIterations = 36;
+        let batchLastGenerated = null;
 
-        while (iterations < maxIterations) {
-          if (freq === 'weekly') {
-            nextDate.setDate(nextDate.getDate() + 7);
-          } else if (freq === 'biweekly') {
-            nextDate.setDate(nextDate.getDate() + 14);
-          } else if (freq === 'monthly') {
-            nextDate.setMonth(nextDate.getMonth() + 1);
-            const daysInMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
-            if (nextDate.getDate() > daysInMonth) nextDate.setDate(daysInMonth);
-          } else if (freq === 'yearly') {
-            nextDate.setFullYear(nextDate.getFullYear() + 1);
-            const daysInMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
-            if (nextDate.getDate() > daysInMonth) nextDate.setDate(daysInMonth);
+        while (iterations < 36) {
+          if (freq === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
+          else if (freq === 'biweekly') nextDate.setDate(nextDate.getDate() + 14);
+          else if (freq === 'monthly') {
+              nextDate.setMonth(nextDate.getMonth() + 1);
+              const daysInMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
+              if (nextDate.getDate() > daysInMonth) nextDate.setDate(daysInMonth);
           }
+          else if (freq === 'yearly') nextDate.setFullYear(nextDate.getFullYear() + 1);
 
-          const nextYear = nextDate.getFullYear();
-          const nextMonth = nextDate.getMonth();
-
-          if (nextYear > currentYear || (nextYear === currentYear && nextMonth > currentMonth)) break;
-
-          const shouldGenerate = 
-            (nextYear < currentYear || (nextYear === currentYear && nextMonth < currentMonth)) ||
-            (nextYear === currentYear && nextMonth === currentMonth);
-
-          if (!shouldGenerate) break;
+          if (nextDate > today) break;
 
           const nextDateStr = nextDate.toISOString().split('T')[0];
           const alreadyExists = family.some(t => t.date.startsWith(nextDateStr));
 
           if (!alreadyExists) {
-            const newItem = {
+            newItems.push({
               ...parent,
               id: generateId(),
               date: nextDate.toISOString(),
               recurringId: familyId,
-              isRecurring: false,
+              isRecurring: false, 
               createdAt: new Date().toISOString()
-            };
-            newItems.push(newItem);
-            family.unshift(newItem);
+            });
             hasChanges = true;
           }
-
+          batchLastGenerated = nextDate.toISOString();
           iterations++;
+        }
+
+        if (batchLastGenerated) {
+            parentUpdates.push({ id: parent.id, lastGenerated: batchLastGenerated });
+            hasChanges = true;
         }
       });
 
-      if (hasChanges && newItems.length > 0) {
-        console.log(`Generated ${newItems.length} recurring transaction(s)`);
-        setTransactions(prev => [...newItems, ...prev]);
+      if (hasChanges) {
+        setTransactions(prev => {
+            let list = prev.map(t => {
+                const update = parentUpdates.find(u => u.id === t.id);
+                return update ? { ...t, lastGenerated: update.lastGenerated } : t;
+            });
+            return [...newItems, ...list];
+        });
       }
     };
-
     const timer = setTimeout(processRecurring, 1000);
     return () => clearTimeout(timer);
   }, [transactions.length]);
 
-  // --- AUTO-PAY GENERATOR ---
+  // --- 2. AUTO-PAY ENGINE ---
   useEffect(() => {
     const processAutoPay = () => {
       const today = new Date();
       credits.forEach(c => {
         if (c.autopay && c.dueDate && c.minPayment) {
+          // Zero Balance Check
+          if ((c.currentBalance || 0) <= 0) return; 
+
           const due = getLocalDate(c.dueDate);
           if (isSameDay(today, due)) {
             recordCreditPayment(c.id, c.minPayment, today.toISOString(), 'Auto-Pay');
@@ -218,11 +178,11 @@ export function FinanceProvider({ children }) {
       });
     };
     processAutoPay();
-    const interval = setInterval(processAutoPay, 86400000); // Daily check
+    const interval = setInterval(processAutoPay, 86400000); 
     return () => clearInterval(interval);
   }, [credits]);
 
-  // --- NOTIFICATIONS ---
+  // --- 3. WORKING NOTIFICATION SCHEDULER ---
   useEffect(() => {
     const scheduleNotifications = async () => {
       try {
@@ -249,6 +209,7 @@ export function FinanceProvider({ children }) {
         const [userHour, userMinute] = NOTIFICATION_TIME.split(':').map(Number);
         let notifId = 100; 
 
+        // 1. BILL REMINDERS
         if (settings.notifications.bill_reminders) {
           transactions
             .filter(tx => tx.isRecurring && tx.type === 'expense')
@@ -286,17 +247,83 @@ export function FinanceProvider({ children }) {
             });
         }
 
-        // Loan & Autopay notifications (unchanged)
-        // ... (your existing code here)
+        // 2. LOAN DUE DATES
+        if (settings.notifications.loan_dates) {
+           const bufferDays = parseInt(settings.notifications.loan_notify_days || 0);
+           credits.filter(c => !c.autopay && c.dueDate).forEach(c => {
+               const savedDate = getLocalDate(c.dueDate);
+               const dayOfMonth = savedDate.getDate();
+
+               let current = new Date();
+               current.setDate(dayOfMonth);
+               current.setHours(userHour, userMinute, 0, 0);
+               
+               let notifyTime = new Date(current);
+               notifyTime.setDate(current.getDate() - bufferDays);
+
+               if (notifyTime < now) {
+                   current.setMonth(current.getMonth() + 1);
+               }
+
+               for(let i=0; i<6; i++) {
+                   notifyTime = new Date(current);
+                   notifyTime.setDate(current.getDate() - bufferDays);
+                   
+                   if (notifyTime > now) {
+                       notificationsToSchedule.push({
+                           id: notifId++,
+                           title: `Payment Due`,
+                           body: `Payment for ${c.name} is due in ${bufferDays} days.`,
+                           schedule: { at: notifyTime, allowWhileIdle: true }, 
+                           channelId: 'finance_alerts',
+                       });
+                   }
+                   current.setMonth(current.getMonth() + 1);
+               }
+           });
+        }
+
+        // 3. AUTOPAY
+        if (settings.notifications.autopay) {
+            const bufferDays = 0; 
+            credits.filter(c => c.autopay && c.dueDate).forEach(c => {
+                const savedDate = getLocalDate(c.dueDate);
+                const dayOfMonth = savedDate.getDate();
+
+                let current = new Date();
+                current.setDate(dayOfMonth);
+                current.setHours(userHour, userMinute, 0, 0);
+
+                let notifyTime = new Date(current);
+                notifyTime.setDate(current.getDate() - bufferDays);
+
+                if (notifyTime < now) {
+                    current.setMonth(current.getMonth() + 1);
+                }
+
+                for(let i=0; i<6; i++) {
+                    notifyTime = new Date(current);
+                    notifyTime.setDate(current.getDate() - bufferDays);
+
+                    if (notifyTime > now) {
+                        notificationsToSchedule.push({
+                            id: notifId++,
+                            title: `Upcoming Autopay`,
+                            body: `${c.name} will be autopaid today. Ensure funds are available.`,
+                            schedule: { at: notifyTime, allowWhileIdle: true },
+                            channelId: 'finance_alerts',
+                        });
+                    }
+                    current.setMonth(current.getMonth() + 1);
+                }
+            });
+        }
 
         if (notificationsToSchedule.length > 0) {
             await LocalNotifications.schedule({ notifications: notificationsToSchedule });
         }
-      } catch (e) {
-          console.error("Notification Error:", e);
-      }
+      } catch (e) { console.error("Notification Error:", e); }
     };
-
     scheduleNotifications();
   }, [transactions, credits, categories, settings.notifications]); 
 
@@ -318,6 +345,8 @@ export function FinanceProvider({ children }) {
     else { setCredits(prev => prev.map(c => c.id === arg1.id ? arg1 : c)); }
   };
   const deleteCredit = (id) => setCredits(prev => prev.filter(c => c.id !== id));
+  
+  // FIX: Only update history/balance, remove addTransaction
   const recordCreditPayment = (creditId, amount, date, note) => {
     const parsedAmount = parseFloat(amount);
     const credit = credits.find(c => c.id === creditId);
@@ -330,14 +359,12 @@ export function FinanceProvider({ children }) {
         return { ...c, history: [...(c.history || []), payment], currentBalance: (c.currentBalance || 0) - parsedAmount };
       } return c;
     }));
-    addTransaction({ amount: parsedAmount, type: 'expense', category: 'Debt Payment', date, notes: `Paid ${note}`, isRecurring: false });
   };
+
   const addCategory = (name, type, icon = 'Tag', color = '#94a3b8', notificationsEnabled = false) => {
     setCategories(prev => [...prev, { id: generateId(), name, type, icon, color, notificationsEnabled }]);
   };
-  const updateCategory = (id, updates) => {
-    setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  };
+  const updateCategory = (id, updates) => setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
   const deleteCategory = (id) => setCategories(prev => prev.filter(c => c.id !== id));
   const updateSetting = (key, val) => setSettings(prev => ({ ...prev, [key]: val }));
   const updateNotificationSetting = (key, val) => {
@@ -354,6 +381,34 @@ export function FinanceProvider({ children }) {
     for (const k of keys) val = val?.[k];
     return val || key;
   };
+
+  const dailyReminders = useMemo(() => {
+    const today = new Date();
+    const todayDay = today.getDate();
+    const alerts = [];
+    if (settings.notifications.bill_reminders) {
+        const billAlerts = transactions.filter(tx => tx.isRecurring && tx.type === 'expense').filter(tx => {
+            const cat = categories.find(c => c.id === tx.categoryId || c.name === tx.category);
+            return cat && cat.notificationsEnabled === true;
+        }).filter(tx => getLocalDate(tx.date).getDate() === todayDay).map(tx => ({
+            id: tx.id, category: tx.category, note: tx.notes || 'Payment Due', amount: tx.amount, type: 'bill',
+            icon: categories.find(c => c.id === tx.categoryId || c.name === tx.category)?.icon || 'AlertCircle'
+        }));
+        alerts.push(...billAlerts);
+    }
+    if (settings.notifications.loan_dates) {
+        const bufferDays = parseInt(settings.notifications.loan_notify_days || 0);
+        const loanAlerts = credits.filter(c => c.dueDate).filter(c => {
+            const d = getLocalDate(c.dueDate); 
+            const triggerDay = d.getDate() - bufferDays;
+            return todayDay === triggerDay; 
+        }).map(c => ({
+            id: c.id, category: c.name, note: `Due in ${bufferDays} days`, amount: c.minPayment || 0, type: 'loan', icon: 'CreditCard'
+        }));
+        alerts.push(...loanAlerts);
+    }
+    return alerts.filter(a => !dismissedReminders.includes(a.id));
+  }, [transactions, credits, categories, settings.notifications, dismissedReminders]);
 
   return (
     <FinanceContext.Provider value={{

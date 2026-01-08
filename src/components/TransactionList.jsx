@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Trash2, Filter, X, Edit2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Moon, Sun, Globe, DollarSign, Plus, Trash2, Edit2, Check, Bell, ChevronLeft, ChevronRight, CreditCard, RefreshCw, Smartphone, Brain, DownloadCloud, AlertTriangle, Tag, Filter } from 'lucide-react'; // Fixed: Added Filter
+import * as LucideIcons from 'lucide-react'; // Added to map icon strings to components
 import { useFinance } from '../contexts/FinanceContext';
 import { format, subMonths, addMonths, isSameMonth, parseISO } from 'date-fns';
+
 import { cn } from '../lib/utils';
 import TransactionForm from './TransactionForm';
 
@@ -140,6 +142,7 @@ export default function TransactionList({ type = 'expense' }) {
         ) : (
           filteredTransactions.map(t => {
             const cat = categories.find(c => c.name === t.category) || {};
+            const IconComponent = LucideIcons[cat.icon] || Tag; // Resolved icon component
              
             // Frequency badge logic
             const familyId = t.recurringId || (t.isRecurring ? t.id : null);
@@ -159,14 +162,16 @@ export default function TransactionList({ type = 'expense' }) {
                 className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center justify-between group active:scale-98 transition-transform"
               >
                 <div className="flex items-center gap-4">
+                  {/* Changed from charAt(0) to IconComponent */}
                   <div 
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm text-lg" 
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm" 
                     style={{ backgroundColor: cat.color || '#94a3b8' }}
                   >
-                    {t.category.charAt(0)}
+                    <IconComponent className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-900 dark:text-white">{t.category}</h3>
+                    <p className="text-slate-900 dark:text-white">{t.notes}</p>
                     <p className="text-xs text-slate-400 font-medium flex items-center gap-2 flex-wrap">
                       {format(parseISO(t.date), 'MMM dd')}
                       {freqDisplay && (

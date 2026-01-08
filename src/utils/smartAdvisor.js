@@ -1,7 +1,16 @@
 import { AlertCircle, Lightbulb, CheckCircle } from 'lucide-react';
-import { startOfMonth, endOfMonth, subDays, parseISO } from 'date-fns';
+import { subMonths } from 'date-fns';
+import { Preferences } from '@capacitor/preferences';
 
-let insightIdCounter = 0; // Simple counter for unique IDs
+/* ============================================================================
+   1. CONFIGURATION (Cloud Models)
+   ============================================================================ */
+// We try these in order. If one fails (e.g. 404 Not Found), we automatically try the next.
+const MODEL_NAME = "gemini-2.5-flash-lite";
+
+// Correct URL structure according to Google API docs
+const BASE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent`;
+let insightIdCounter = 0;
 
 export const analyzeFinances = (transactions, credits, stats) => {
   const insights = [];
@@ -64,86 +73,152 @@ export const analyzeFinances = (transactions, credits, stats) => {
   return insights;
 };
 
-// --- CHATBOT ENGINE (unchanged except minor cleanup) ---
-export const processUserMessage = (msg, transactions, credits, stats, categories) => {
-  const text = msg.toLowerCase();
+/* ============================================================================
+   3. CLOUD API HANDLER (The "Brain")
+============================================================================ */
+
+const getFinancialContext = (userText, transactions, credits) => {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  let income = 0;
+  let expenses = 0;
+  let minDebtPayments = 0; // New tracker for mandatory debt payments
   
-  let startDate = startOfMonth(new Date());
-  let endDate = new Date();
-  let timeLabel = "this month";
+  const categoryTotals = {};
+  
+  // 1. BUILD TRANSACTION INDEX & TOTALS
+  const searchableIndex = transactions.map(t => {
+      if (t.date && new Date(t.date) >= monthStart) {
+          const amt = Number(t.amount || 0);
+          if (t.type === 'income') income += amt;
+          if (t.type === 'expense') {
+              expenses += amt;
+              const cat = t.category || 'Misc';
+              categoryTotals[cat] = (categoryTotals[cat] || 0) + amt;
+          }
+      }
 
-  if (text.includes('last month')) {
-    const lastMonth = subDays(new Date(), 30);
-    startDate = startOfMonth(lastMonth);
-    endDate = endOfMonth(lastMonth);
-    timeLabel = "last month";
-  } else if (text.includes('last week')) {
-    startDate = subDays(new Date(), 7);
-    timeLabel = "last week";
+      return {
+          ...t,
+          searchBlob: `${t.category || ''} ${t.name || ''} ${t.description || ''} ${t.notes || ''} ${t.frequency || ''}`.toLowerCase()
+      };
+  });
+
+  // 2. FILTER TRANSACTIONS (Hybrid Search)
+  let relevantTx = [];
+  if (userText && userText.length > 2) {
+      const keywords = userText.toLowerCase()
+        .replace(/[?.,]/g, '')
+        .split(' ')
+        .filter(w => w.length > 2 && !['how','much','the','what','when','does'].includes(w));
+
+      if (keywords.length > 0) {
+          relevantTx = searchableIndex.filter(t => 
+              keywords.some(k => t.searchBlob.includes(k))
+          );
+      }
   }
 
-  if (text.includes('afford')) {
-    const match = text.match(/\$?(\d+)/);
-    if (match) {
-      const amount = parseFloat(match[1]);
-      const affordable = amount <= stats.netForecast ? 'yes' : 'no';
-      return { text: `Based on your forecast, ${affordable}! You have $${stats.netForecast.toFixed(2)} left after bills.` };
+  const recentTx = searchableIndex.sort((a,b) => new Date(b.date) - new Date(a.date));
+  const finalTxList = [...new Set([...relevantTx, ...recentTx])].slice(0, 100);
+
+
+  // 3. PROCESS DEBTS & MINIMUM PAYMENTS
+  let totalDebt = 0;
+  
+  const debtDetails = credits.map(c => {
+    const balance = Number(c.currentBalance || 0);
+    const minPay = Number(c.minPayment || 0);
+    const limit = Number(c.limit || c.totalAmount || 0);
+    const utilization = limit > 0 ? Math.round((balance / limit) * 100) : 0;
+    
+    totalDebt += balance;
+    minDebtPayments += minPay; // Sum up the mandatory monthly payments
+
+    return `- ${c.name} (${c.type || 'Loan'}): Bal $${balance}, Min Pay $${minPay}, Util ${utilization}%, APR ${c.apr || 'N/A'}%`;
+  });
+
+  // 4. CALCULATE TRUE NET CASH FLOW
+  // Formula: Income - (Expenses + Mandatory Debt Payments)
+  const trueNetCashFlow = income - expenses - minDebtPayments;
+
+  const topCategories = Object.entries(categoryTotals)
+    .sort((a, b) => b[1] - a[1]).slice(0, 5)
+    .map(([c, v]) => `${c}:$${v.toFixed(0)}`).join(', ');
+
+  // 5. RETURN THE UPDATED CONTEXT
+  return `
+FINANCIAL_PROFILE
+MONTHLY_INCOME: $${income.toFixed(0)}
+MONTHLY_EXPENSES: $${expenses.toFixed(0)}
+MANDATORY_DEBT_PAYMENTS: $${minDebtPayments.toFixed(0)}
+NET_CASH_FLOW (Income - Expenses - MinDebt): $${trueNetCashFlow.toFixed(0)}
+
+DEBT_SUMMARY
+TOTAL_DEBT: $${totalDebt.toFixed(0)}
+ACCOUNTS:
+${debtDetails.join('\n')}
+
+TOP_SPENDING_CATEGORIES:
+${topCategories}
+
+TRANSACTION_LOG (Most Relevant):
+${finalTxList.map(t => {
+    return `${t.date.split('T')[0]} | ${t.category} | ${t.name || ''} | $${t.amount} | ${t.frequency || ''} | ${t.type}`;
+}).join('\n')}
+`;
+};
+
+export const processUserMessage = async (userText, transactions, credits) => {
+  try {
+    const { value: apiKey } = await Preferences.get({ key: 'user_google_api_key' });
+    if (!apiKey) return { text: "🔒 Please set up your API Key in Settings." };
+
+    const context = getFinancialContext(userText, transactions, credits);
+
+    console.log("Connecting to AI...");
+
+    const response = await fetch(`${BASE_URL}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{
+                parts: [{
+                    text: `
+                    Role: Financial Advisor AI.
+                    Context: You have access to the user's live financial data below.
+                    
+                    USER DATA:
+                    ${context}
+                    
+                    USER QUESTION: "${userText}"
+                    
+                    RULES:
+                    1. Use the [TRANSACTION_LOG] to find specific prices.
+                    2. Note that NET_CASH_FLOW accounts for expenses AND minimum debt payments.
+                    3. If Net Cash Flow is negative, warn the user they are over budget.
+                    4. Be concise and friendly.
+                    `
+                }]
+            }]
+        })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        return { text: `⚠️ Google API Error: ${data.error?.message || "Unknown"}` };
     }
-  }
 
-  if (text.includes('highest') || text.includes('most expensive')) {
-    const topExpense = transactions
-      .filter(t => t.type === 'expense' && parseISO(t.date) >= startDate && parseISO(t.date) <= endDate)
-      .sort((a, b) => b.amount - a.amount)[0];
-    if (topExpense) {
-      return { text: `Your highest expense ${timeLabel} was $${topExpense.amount} on ${topExpense.category}.` };
+    if (data.candidates && data.candidates.length > 0) {
+        return { text: data.candidates[0].content.parts[0].text };
+    } else {
+        return { text: "⚠️ AI returned no response." };
     }
-  }
 
-  if (text.includes('subscription') || text.includes('recurring') || text.includes('bills')) {
-      const subs = transactions.filter(t => t.type === 'expense' && t.isRecurring);
-      const totalSubs = subs.reduce((acc, t) => acc + parseFloat(t.amount), 0);
-      const list = subs.slice(0, 3).map(s => s.category).join(', ') || 'none';
-      return { text: `You have ${subs.length} recurring subscriptions totaling $${totalSubs.toFixed(2)}/month. Includes: ${list}.` };
+  } catch (error) {
+    console.error("Network Error:", error);
+    return { text: `⚠️ Connection Error: ${error.message}` };
   }
-
-  const spendingKeywords = ['spend', 'spent', 'cost', 'pay', 'much'];
-  if (spendingKeywords.some(w => text.includes(w))) {
-    const matchedCategory = categories.find(c => text.includes(c.name.toLowerCase()));
-    if (matchedCategory) {
-      const total = transactions
-        .filter(t => t.categoryId === matchedCategory.id && parseISO(t.date) >= startDate && parseISO(t.date) <= endDate)
-        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      return { text: `You spent $${total.toFixed(2)} on ${matchedCategory.name} ${timeLabel}.` };
-    }
-    if (text.includes('total')) {
-        const total = transactions
-            .filter(t => t.type === 'expense' && parseISO(t.date) >= startDate && parseISO(t.date) <= endDate)
-            .reduce((acc, t) => acc + parseFloat(t.amount), 0);
-        return { text: `Total expenses ${timeLabel}: $${total.toFixed(2)}` };
-    }
-  }
-
-  if (text.includes('cut') || text.includes('save more')) {
-    const topExpenses = transactions
-      .filter(t => t.type === 'expense')
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 3)
-      .map(t => `${t.category}: $${t.amount}`);
-    const list = topExpenses.length > 0 ? topExpenses.join(', ') : 'none';
-    return { text: `Top areas to cut: ${list}. Reducing these could help you save more.` };
-  }
-
-  if (text.includes('flow') || text.includes('budget')) {
-     const status = stats.netForecast >= 0 ? "positive" : "negative";
-     return { text: `Cash flow is ${status}. You have $${stats.netForecast.toFixed(2)} remaining after bills.` };
-  }
-
-  if (text.includes('debt') || text.includes('owe')) {
-    const totalDebt = credits.reduce((acc, c) => acc + (parseFloat(c.currentBalance || 0)), 0);
-    const monthlyMin = credits.reduce((acc, c) => acc + (parseFloat(c.minPayment || 0)), 0);
-    return { text: `Total debt: $${totalDebt.toFixed(2)}. Monthly minimum payments: $${monthlyMin.toFixed(2)}.` };
-  }
-
-  return { text: "I can help with spending, debt, subscriptions, affordability, and more! Try asking about your highest expense or recurring bills." };
 };

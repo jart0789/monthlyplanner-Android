@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+// 👇 ADDED useEffect TO THIS LINE
+import React, { useState, useEffect } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
-import { Moon, Sun, Globe, DollarSign, Plus, Trash2, Edit2, Check, Bell, CreditCard, RefreshCw, Smartphone } from 'lucide-react';
+import { Moon, Sun, Globe, DollarSign, Plus, Trash2, Edit2, Check, Bell, CreditCard, RefreshCw, Smartphone, Brain, DownloadCloud, AlertTriangle } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { cn } from '../lib/utils';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { useModelManager } from '../hooks/useModelManager';
+import { Preferences } from '@capacitor/preferences';
 
 const ICON_OPTIONS = ['Tag', 'Home', 'Coffee', 'Car', 'Zap', 'Smartphone', 'Briefcase', 'ShoppingBag', 'Utensils', 'Plane', 'Heart', 'Music', 'Book', 'Gift', 'Shield', 'Wifi'];
 const COLOR_OPTIONS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316', '#64748B'];
@@ -11,7 +14,28 @@ const COLOR_OPTIONS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#
 export default function Settings() {
   const { settings, setTheme, setLanguage, setCurrency, updateNotificationSetting, categories, addCategory, updateCategory, deleteCategory, t, notificationTime } = useFinance();
   const [activeTab, setActiveTab] = useState('general'); 
+  const { isReady, fileExists, isDownloading, downloadProgress, downloadModel, deleteModel } = useModelManager();
   
+  // --- NEW: API KEY STATE ---
+  const [hasApiKey, setHasApiKey] = useState(false);
+
+  useEffect(() => {
+     checkKeyStatus();
+  }, []);
+
+  const checkKeyStatus = async () => {
+     const { value } = await Preferences.get({ key: 'user_google_api_key' });
+     setHasApiKey(!!value);
+  };
+
+  const handleRemoveKey = async () => {
+     if(confirm("Disconnect your Google API Key? You will need to enter it again to use the AI Advisor.")) {
+         await Preferences.remove({ key: 'user_google_api_key' });
+         setHasApiKey(false);
+     }
+  };
+  // ---------------------------
+
   // --- CATEGORY FORM STATE ---
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -27,43 +51,7 @@ export default function Settings() {
 
   const getNotifState = (key) => settings.notifications ? settings.notifications[key] : false;
   const getNotifValue = (key) => settings.notifications ? (settings.notifications[key] || 0) : 0;
-
-  // --- SMART TEST BUTTON ---
-  const triggerTestSchedule = async () => {
-    try {
-        const perm = await LocalNotifications.requestPermissions();
-        if (perm.display !== 'granted') return alert("Notifications permission denied!");
-
-        const [configHour, configMinute] = notificationTime.split(':').map(Number);
-        
-        // Calculate Target Time (Today or Tomorrow)
-        const now = new Date();
-        const target = new Date();
-        target.setHours(configHour, configMinute, 0, 0);
-
-        // If time passed, schedule for TOMORROW
-        if (target < now) {
-            target.setDate(target.getDate() + 1);
-        }
-
-        await LocalNotifications.schedule({
-            notifications: [{
-                title: "Test Successful",
-                body: `This is a test alert. If you see this, your ${notificationTime} daily schedule works!`,
-                id: 99999,
-                schedule: { at: target, allowWhileIdle: true }, // MATCHES REAL LOGIC
-                sound: null,
-                channelId: 'finance_alerts'
-            }]
-        });
-
-        const timeString = target.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        alert(`Test Scheduled! \n\nTarget Time: ${timeString}\n\n1. Close App.\n2. Wait until ${timeString}.`);
-    } catch (e) {
-        alert("Error: " + e.message);
-    }
-  };
-
+  
   return (
     <div className="space-y-6 pb-24 animate-in fade-in">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('settings')}</h1>
@@ -140,14 +128,8 @@ export default function Settings() {
                 </button>
              </div>
 
-             {/* 4. DEBUG BUTTON */}
-             <div onClick={triggerTestSchedule} className="bg-slate-100 dark:bg-slate-900 p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 flex justify-center items-center gap-2 cursor-pointer active:scale-95 transition-transform">
-                <Smartphone className="w-4 h-4 text-slate-400"/>
-                <span className="text-sm font-bold text-slate-500">Test Schedule ({notificationTime})</span>
-             </div>
-
           </div>
-          {/* ... Regional Settings (same as before) ... */}
+          {/* ... Regional Settings ... */}
           <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center">
              <div className="flex items-center gap-3">
                 <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"><DollarSign className="w-5 h-5 text-emerald-500"/></div>
@@ -172,14 +154,37 @@ export default function Settings() {
                <option value="fr">Français</option>
              </select>
           </div>
+       
+         {/* API KEY CONFIG */}
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+             <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg"><Brain className="w-5 h-5"/></div>
+                <div className="flex flex-col">
+                   <span className="font-bold text-slate-700 dark:text-white">AI Configuration</span>
+                   <span className="text-xs text-slate-400">
+                     {hasApiKey ? "API Key Connected" : "Not Configured"}
+                   </span>
+                </div>
+             </div>
+             
+             {hasApiKey ? (
+                <button onClick={handleRemoveKey} className="w-full py-2 bg-rose-50 text-rose-600 dark:bg-rose-900/20 dark:text-rose-400 rounded-lg text-xs font-bold flex items-center justify-center gap-2 border border-rose-100 dark:border-rose-900">
+                   <Trash2 className="w-4 h-4"/> Disconnect API Key
+                </button>
+             ) : (
+                <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 text-center">
+                    <p className="text-xs text-slate-500 mb-2">Connect your Google Gemini Key to enable the AI Advisor.</p>
+                    <span className="text-xs font-bold text-indigo-500">Go to Dashboard &gt; Chat to setup.</span>
+                </div>
+             )}
+          </div>
+
         </div>
       )}
 
-      {/* --- CATEGORIES TAB (same as before) --- */}
+      {/* --- CATEGORIES TAB --- */}
       {activeTab === 'categories' && (
         <div className="space-y-6">
-          {/* ... Categories List ... */}
-          {/* Add/Edit Form */}
           <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
              <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                {isEditing ? <Edit2 className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}

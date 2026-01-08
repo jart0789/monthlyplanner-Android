@@ -267,6 +267,7 @@ export default function Credits() {
            const progressPercent = Math.min((current / maxAmount) * 100, 100).toFixed(0);
            const displayApr = c.interestRate || c.apr || 0;
            const displayname = c.name;
+           
            return (
             <div key={c.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-lg border border-slate-200 relative overflow-hidden">
               {c.autopay && (
@@ -287,6 +288,10 @@ export default function Credits() {
                 <div className="flex h-4 items-center mb-2 mt-4">
                    <span className="text-slate-400 text-sm mr-2">Name:</span>
                    <span className="mb-1 text-Grey font-bold text-lg">{displayname}</span>
+               </div>
+                   <div className="flex h-4 items-center mb-2 mt-4">
+                   <span className="text-slate-400 text-sm mr-2">Balance:</span>
+                   <span className="mb-1 text-Grey font-bold text-lg">{formatCurrency(current)}</span>
                </div>
               <div className="flex h-2 justify-between items-end mb-2 mt-4">
                  <span className="text-slate-400 text-sm">Progress</span>

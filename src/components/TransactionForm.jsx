@@ -112,7 +112,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
                       : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800"
                   )}
                 >
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center mb-1 text-white shadow-sm"
+                  <div className="w-10 h-4 rounded-full flex items-center justify-center mb-1 text-white shadow-sm"
                        style={{ backgroundColor: isSelected ? '#3B82F6' : (cat.color || '#94a3b8') }}>
                     {isSelected ? <Check className="w-5 h-5"/> : <IconTag className="w-5 h-5"/>}
                   </div>
@@ -202,7 +202,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
       </div>
 
       {/* Footer Button */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 safe-bottom">
+      <div className="absolute bottom-10 left-0 right-0 p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 safe-bottom">
         <button 
           onClick={handleSave}
           className={cn(
