@@ -11,7 +11,8 @@ import { analyzeFinances } from '../utils/smartAdvisor';
 
 const COLORS = ['#0cb606ff', '#F43F5E', '#3B82F6', '#F59E0B', '#8B5CF6', '#6366f1'];
 
-export default function Dashboard() {
+// Added onNavigate prop to handle card clicks
+export default function Dashboard({ onNavigate }) {
   const { transactions, credits, formatCurrency, t, dailyReminders, dismissReminder, categories } = useFinance(); // Destructured categories
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [dismissedAdvice, setDismissedAdvice] = useState([]);
@@ -138,9 +139,13 @@ export default function Dashboard() {
         }
     });
     
-    // REMOVED: if (stats.monthlyDebtMin > 0) groups['Debt Repayment'] = stats.monthlyDebtMin;
+    // Removed Debt Repayment from chart groups as per previous request
     return Object.keys(groups).map(k => ({ name: k, value: groups[k] })).sort((a, b) => b.value - a.value);
   }, [transactions, stats.monthlyDebtMin]);
+
+  // Helpers for chart empty state
+  const hasChartData = chartData.length > 0;
+  const displayData = hasChartData ? chartData : [{ name: 'Empty', value: 1 }];
 
   const upcoming = useMemo(() => {
     const list = [];
@@ -148,10 +153,11 @@ export default function Dashboard() {
     nextTwoWeeks.setDate(today.getDate() + 14);
     
     credits.forEach(c => {
-      if (!c.dueDate) return;
-      const due = parseISO(c.dueDate);
-      if (due >= startOfDay(today) && due <= nextTwoWeeks) {
-        list.push({ id: c.id, title: c.name, date: c.dueDate, amount: c.minPayment, type: 'credit' });
+      if (c.dueDate) {
+        const due = parseISO(c.dueDate);
+        if (due >= startOfDay(today) && due <= nextTwoWeeks) {
+          list.push({ id: c.id, title: c.name, date: c.dueDate, amount: c.minPayment, type: 'credit' });
+        }
       }
     });
     
@@ -221,7 +227,7 @@ export default function Dashboard() {
                     {isTop && (
                         <div className="flex flex-col gap-2">
                             <span className="text-xs font-bold text-white/50 text-center uppercase tracking-widest">Done</span>
-                            <button onClick={() => dismissReminder(reminder.id)} className="w-10 h-10 bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-transform"><Check className="w-5 h-5"/></button>
+                            <button onClick={() => dismissReminder(reminder.id)} className="w-10 h-10 bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-transform"><Check className="w-5 h-5"/></button>
                         </div>
                     )}
                  </div>
@@ -230,25 +236,38 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* CLICKABLE SUMMARY CARDS */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-sm">
+        <div 
+          onClick={() => onNavigate && onNavigate('income')}
+          className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-xl cursor-pointer active:scale-95 transition-transform hover:bg-slate-50 dark:hover:bg-slate-700/50"
+        >
           <div className="mx-auto w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2"><TrendingUp className="w-4 h-4"/></div>
           <p className="text-[10px] text-slate-400 font-bold uppercase">Income</p>
           <p className="text-sm font-bold text-slate-900 dark:text-white">{formatCurrency(stats.monthlyIncome)}</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-sm">
+        
+        <div 
+          onClick={() => onNavigate && onNavigate('expenses')}
+          className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-xl cursor-pointer active:scale-95 transition-transform hover:bg-slate-50 dark:hover:bg-slate-700/50"
+        >
           <div className="mx-auto w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-2"><TrendingDown className="w-4 h-4"/></div>
           <p className="text-[10px] text-slate-400 font-bold uppercase">Expenses</p>
           <p className="text-sm font-bold text-slate-900 dark:text-white">{formatCurrency(stats.recurringExpenses)}</p>
         </div>
-        <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-sm">
+        
+        <div 
+          onClick={() => onNavigate && onNavigate('credits')}
+          className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-xl cursor-pointer active:scale-95 transition-transform hover:bg-slate-50 dark:hover:bg-slate-700/50"
+        >
           <div className="mx-auto w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-2"><CreditCard className="w-4 h-4"/></div>
           <p className="text-[10px] text-slate-400 font-bold uppercase">Monthly Debt</p>
           <p className="text-sm font-bold text-slate-900 dark:text-white">{formatCurrency(stats.monthlyDebtMin)}</p>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700">
+      {/* PIE CHART WITH EMPTY STATE */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
         <div className="text-center mb-6">
           <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Projected Monthly Budget</p>
           <p className="text-slate-400 text-xs font-medium mt-1">Income - (Recurring Bills + Debt)</p>
@@ -257,23 +276,43 @@ export default function Dashboard() {
              <div className={cn("px-2 py-1 rounded-full text-xs font-bold", stats.projectedSavingsRate >= 0 ? "bg-emerald-500 text-emerald-100" : "bg-rose-600 text-rose-100")}>{stats.projectedSavingsRate > 0 ? '+' : ''}{stats.projectedSavingsRate.toFixed(1)}%</div>
           </div>
         </div>
-        <div className="h-64 w-full">
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%" padding-bottom={2}>
-              <PieChart>
-                <Pie data={chartData} innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
-                  {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(value) => `${formatCurrency(value)} (${(value / stats.monthlyIncome * 100).toFixed(1)}%)`} />
-                <Legend verticalAlign="bottom" height={59} bottom={5}/>
-              </PieChart>
-            </ResponsiveContainer>
-          ) : ( <div className="flex items-center justify-center h-full text-slate-400 text-sm">Add recurring items to see forecast</div> )}
+        
+        <div className="h-64 w-full relative">
+          <ResponsiveContainer width="100%" height="100%" padding-bottom={2}>
+            <PieChart>
+              <Pie 
+                data={displayData} 
+                innerRadius={60} 
+                outerRadius={90} 
+                paddingAngle={5} 
+                dataKey="value"
+                stroke="none"
+              >
+                {displayData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={hasChartData ? COLORS[index % COLORS.length] : '#94a3b833'} 
+                  />
+                ))}
+              </Pie>
+              {hasChartData && <Tooltip formatter={(value) => `${formatCurrency(value)} (${(value / stats.monthlyIncome * 100).toFixed(1)}%)`} />}
+              {hasChartData && <Legend verticalAlign="bottom" height={59} bottom={5}/>}
+            </PieChart>
+          </ResponsiveContainer>
+          
+          {/* Overlay Text for Empty State */}
+          {!hasChartData && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <p className="text-slate-400 text-sm font-medium text-center px-8">
+                    Add recurring items to see forecast
+                </p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* 4. UPCOMING BILLS */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800">
           <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Calendar className="w-4 h-4 text-slate-400" /> Due Next 14 Days
@@ -337,7 +376,7 @@ export default function Dashboard() {
              })}
            </div>
         ) : (
-           <div className="p-5 rounded-2xl flex items-center gap-4 border border-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700 shadow-sm">
+           <div className="p-5 rounded-2xl flex items-center gap-4 border border-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700 shadow-xl">
               <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl"><Check className="w-6 h-6" /></div>
               <div>
                 <h4 className="font-bold text-slate-900 dark:text-white">All Good!</h4>

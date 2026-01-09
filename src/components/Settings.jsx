@@ -1,4 +1,3 @@
-// 👇 ADDED useEffect TO THIS LINE
 import React, { useState, useEffect } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
 import { Moon, Sun, Globe, DollarSign, Plus, Trash2, Edit2, Check, Bell, CreditCard, RefreshCw, Smartphone, Brain, DownloadCloud, AlertTriangle } from 'lucide-react';
@@ -8,9 +7,38 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 import { useModelManager } from '../hooks/useModelManager';
 import { Preferences } from '@capacitor/preferences';
 
-const ICON_OPTIONS = ['Tag', 'Home', 'Coffee', 'Car', 'Zap', 'Smartphone', 'Briefcase', 'ShoppingBag', 'Utensils', 'Plane', 'Heart', 'Music', 'Book', 'Gift', 'Shield', 'Wifi'];
-const COLOR_OPTIONS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316', '#64748B'];
+// Expanded Icon Options
+const ICON_OPTIONS = [
+  'Tag', 'Home', 'Coffee', 'Car', 'Zap', 'Smartphone', 'Briefcase', 'ShoppingBag', 
+  'Utensils', 'Plane', 'Heart', 'Music', 'Book', 'Gift', 'Shield', 'Wifi',
+  'CreditCard', 'Banknote', 'Landmark', 'PiggyBank', 'Receipt', 'Wallet', 'TrendingUp', 
+  'CircleDollarSign', 'ShoppingCart', 'Basket', 'Truck', 'Package',
+  'Stethoscope', 'Pill', 'Dumbbell', 'Activity', 'Gamepad', 'Tv', 'Monitor', 'Camera', 
+  'Headphones', 'Wrench', 'Droplet', 'Hammer', 'Lightbulb', 'GraduationCap', 'School', 
+  'Award', 'Baby', 'Dog', 'Cat', 'Users', 'User', 'Sun', 'Moon', 'Umbrella', 'Cloud',
+  'Globe', 'Map', 'MapPin', 'Smile', 'Star', 'Key', 'Lock', 'Flag', 'Anchor', 'Bus', 'Train'
+];
 
+const COLOR_OPTIONS = [
+  '#3B82F6', // Blue
+  '#EF4444', // Red
+  '#10B981', // Emerald
+  '#F59E0B', // Amber
+  '#8B5CF6', // Violet
+  '#EC4899', // Pink
+  '#6366F1', // Indigo
+  '#14B8A6', // Teal
+  '#F97316', // Orange
+  '#84CC16', // Lime
+  '#06B6D4', // Cyan
+  '#0EA5E9', // Sky
+  '#D946EF', // Fuchsia
+  '#F43F5E', // Rose
+  '#EAB308', // Yellow
+  '#78716C', // Stone
+  '#475569', // Slate Dark
+  '#000000', // Black
+];
 export default function Settings() {
   const { settings, setTheme, setLanguage, setCurrency, updateNotificationSetting, categories, addCategory, updateCategory, deleteCategory, t, notificationTime } = useFinance();
   const [activeTab, setActiveTab] = useState('general'); 
@@ -57,8 +85,8 @@ export default function Settings() {
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('settings')}</h1>
 
       <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-        <button onClick={() => setActiveTab('general')} className={cn("flex-1 py-2 rounded-lg text-sm font-bold transition-all", activeTab === 'general' ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white" : "text-slate-500")}>General</button>
-        <button onClick={() => setActiveTab('categories')} className={cn("flex-1 py-2 rounded-lg text-sm font-bold transition-all", activeTab === 'categories' ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white" : "text-slate-500")}>Categories</button>
+        <button onClick={() => setActiveTab('general')} className={cn("flex-1 py-2 rounded-lg text-sm font-bold transition-all", activeTab === 'general' ? "bg-white dark:bg-slate-700 shadow-xl text-slate-900 dark:text-white" : "text-slate-500")}>General</button>
+        <button onClick={() => setActiveTab('categories')} className={cn("flex-1 py-2 rounded-lg text-sm font-bold transition-all", activeTab === 'categories' ? "bg-white dark:bg-slate-700 shadow-xl text-slate-900 dark:text-white" : "text-slate-500")}>Categories</button>
       </div>
 
       {activeTab === 'general' && (
@@ -70,7 +98,7 @@ export default function Settings() {
               <span className="font-bold text-slate-700 dark:text-white">Dark Mode</span>
             </div>
             <button onClick={() => setTheme(settings.theme === 'dark' ? 'light' : 'dark')} className={cn("w-12 h-7 rounded-full transition-colors relative", settings.theme === 'dark' ? "bg-indigo-500" : "bg-slate-300")}>
-              <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-sm", settings.theme === 'dark' ? "left-6" : "left-1")} />
+              <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-xl", settings.theme === 'dark' ? "left-6" : "left-1")} />
             </button>
           </div>
 
@@ -87,7 +115,7 @@ export default function Settings() {
                   </div>
                 </div>
                 <button onClick={() => updateNotificationSetting('bill_reminders', !getNotifState('bill_reminders'))} className={cn("w-12 h-7 rounded-full transition-colors relative", getNotifState('bill_reminders') ? "bg-indigo-600" : "bg-slate-300")}>
-                  <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-sm", getNotifState('bill_reminders') ? "left-6" : "left-1")} />
+                  <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-xl", getNotifState('bill_reminders') ? "left-6" : "left-1")} />
                 </button>
              </div>
 
@@ -102,7 +130,7 @@ export default function Settings() {
                       </div>
                     </div>
                     <button onClick={() => updateNotificationSetting('loan_dates', !getNotifState('loan_dates'))} className={cn("w-12 h-7 rounded-full transition-colors relative", getNotifState('loan_dates') ? "bg-blue-600" : "bg-slate-300")}>
-                      <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-sm", getNotifState('loan_dates') ? "left-6" : "left-1")} />
+                      <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-xl", getNotifState('loan_dates') ? "left-6" : "left-1")} />
                     </button>
                 </div>
                 <div className={cn("flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700 transition-opacity", getNotifState('loan_dates') ? "opacity-100" : "opacity-40 pointer-events-none")}>
@@ -124,7 +152,7 @@ export default function Settings() {
                   </div>
                 </div>
                 <button onClick={() => updateNotificationSetting('autopay', !getNotifState('autopay'))} className={cn("w-12 h-7 rounded-full transition-colors relative", getNotifState('autopay') ? "bg-emerald-600" : "bg-slate-300")}>
-                  <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-sm", getNotifState('autopay') ? "left-6" : "left-1")} />
+                  <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-xl", getNotifState('autopay') ? "left-6" : "left-1")} />
                 </button>
              </div>
 
@@ -185,7 +213,7 @@ export default function Settings() {
       {/* --- CATEGORIES TAB --- */}
       {activeTab === 'categories' && (
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl">
              <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                {isEditing ? <Edit2 className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
                {isEditing ? 'Edit Category' : 'Add New Category'}
@@ -199,8 +227,8 @@ export default function Settings() {
                    <div>
                       <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">Type</label>
                       <div className="flex p-1 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
-                         <button onClick={() => setCatForm({...catForm, type: 'expense'})} className={cn("flex-1 py-2 rounded-lg text-xs font-bold transition-all", catForm.type === 'expense' ? "bg-white dark:bg-slate-700 shadow-sm text-rose-500" : "text-slate-400")}>Expense</button>
-                         <button onClick={() => setCatForm({...catForm, type: 'income'})} className={cn("flex-1 py-2 rounded-lg text-xs font-bold transition-all", catForm.type === 'income' ? "bg-white dark:bg-slate-700 shadow-sm text-emerald-500" : "text-slate-400")}>Income</button>
+                         <button onClick={() => setCatForm({...catForm, type: 'expense'})} className={cn("flex-1 py-2 rounded-lg text-xs font-bold transition-all", catForm.type === 'expense' ? "bg-white dark:bg-slate-700 shadow-xl text-rose-500" : "text-slate-400")}>Expense</button>
+                         <button onClick={() => setCatForm({...catForm, type: 'income'})} className={cn("flex-1 py-2 rounded-lg text-xs font-bold transition-all", catForm.type === 'income' ? "bg-white dark:bg-slate-700 shadow-xl text-emerald-500" : "text-slate-400")}>Income</button>
                       </div>
                    </div>
                 </div>
@@ -214,7 +242,7 @@ export default function Settings() {
                        </div>
                     </div>
                     <button onClick={() => setCatForm({...catForm, notificationsEnabled: !catForm.notificationsEnabled})} className={cn("w-10 h-6 rounded-full transition-colors relative", catForm.notificationsEnabled ? "bg-indigo-500" : "bg-slate-300")}>
-                      <div className={cn("w-4 h-4 bg-white rounded-full absolute top-1 transition-all shadow-sm", catForm.notificationsEnabled ? "left-5" : "left-1")} />
+                      <div className={cn("w-4 h-4 bg-white rounded-full absolute top-1 transition-all shadow-xl", catForm.notificationsEnabled ? "left-5" : "left-1")} />
                     </button>
                   </div>
                 )}
@@ -282,7 +310,7 @@ function CategoryItem({ cat, onEdit, onDelete }) {
   return (
     <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 group">
        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm" style={{ backgroundColor: cat.color || '#94a3b8' }}>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-xl" style={{ backgroundColor: cat.color || '#94a3b8' }}>
              <Icon className="w-5 h-5"/>
           </div>
           <div className="flex flex-col">

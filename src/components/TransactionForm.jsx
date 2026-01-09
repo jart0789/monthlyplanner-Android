@@ -63,7 +63,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-slate-50 dark:bg-slate-900 flex flex-col animate-in slide-in-from-bottom duration-200">
+    <div className="fixed inset-0 z-[200] bg-slate-50 dark:bg-slate-900 flex-col animate-in slide-in-from-bottom duration-200">
       
       {/* Header */}
       <div className="px-4 py-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 safe-top">
@@ -88,7 +88,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="w-full pl-10 pr-4 py-4 bg-white dark:bg-slate-800 rounded-2xl text-3xl font-bold text-slate-900 dark:text-white border-2 border-transparent focus:border-blue-500 outline-none shadow-sm"
+              className="w-full pl-10 pr-4 py-4 bg-white dark:bg-slate-800 rounded-2xl text-3xl font-bold text-slate-900 dark:text-white border-2 border-transparent focus:border-blue-500 outline-none shadow-xl"
               autoFocus
             />
           </div>
@@ -112,7 +112,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
                       : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800"
                   )}
                 >
-                  <div className="w-10 h-4 rounded-full flex items-center justify-center mb-1 text-white shadow-sm"
+                  <div className="w-10 h-4 rounded-full flex items-center justify-center mb-1 text-white shadow-xl"
                        style={{ backgroundColor: isSelected ? '#3B82F6' : (cat.color || '#94a3b8') }}>
                     {isSelected ? <Check className="w-5 h-5"/> : <IconTag className="w-5 h-5"/>}
                   </div>
@@ -133,14 +133,14 @@ export default function TransactionForm({ type, existingData, onClose }) {
               type="date" 
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-white outline-none shadow-sm"
+              className="w-full p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-700 dark:text-white outline-none shadow-xl"
             />
             <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none w-5 h-5"/>
           </div>
         </div>
 
         {/* Recurring Toggle */}
-        <div className="mb-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div className="mb-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
             <div className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><Repeat className="w-5 h-5"/></div>
@@ -150,7 +150,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
                   onClick={() => setIsRecurring(!isRecurring)}
                   className={cn("w-12 h-7 rounded-full transition-colors relative cursor-pointer", isRecurring ? "bg-blue-500" : "bg-slate-300")}
                 >
-                  <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-sm", isRecurring ? "left-6" : "left-1")} />
+                  <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-xl", isRecurring ? "left-6" : "left-1")} />
                 </div>
             </div>
 
@@ -194,7 +194,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add a note..."
               rows="3"
-              className="w-full p-4 pl-10 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-medium text-slate-700 dark:text-white outline-none resize-none shadow-sm"
+              className="w-full p-4 pl-10 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-medium text-slate-700 dark:text-white outline-none resize-none shadow-xl"
             />
             <AlignLeft className="absolute left-3 top-5 text-slate-400 w-5 h-5"/>
           </div>

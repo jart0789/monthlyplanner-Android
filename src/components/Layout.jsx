@@ -15,12 +15,13 @@ export default function Layout() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <Dashboard />;
+      // FIX: Pass setActiveTab as the onNavigate prop so Dashboard cards can switch tabs
+      case 'dashboard': return <Dashboard onNavigate={setActiveTab} />;
       case 'income': return <TransactionList type="income" />;
       case 'expenses': return <TransactionList type="expense" />;
       case 'credits': return <Credits />;
       case 'settings': return <SettingsPage />;
-      default: return <Dashboard />;
+      default: return <Dashboard onNavigate={setActiveTab} />;
     }
   };
 

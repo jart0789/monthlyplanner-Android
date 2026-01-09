@@ -88,7 +88,7 @@ export default function TransactionList({ type = 'expense' }) {
 
       {/* Total Card */}
       <div className={cn("p-6 rounded-3xl mb-4 text-white shadow-lg transition-colors", 
-        type === 'income' ? "bg-emerald-500" : "bg-blue-600"
+        type === 'income' ? "bg-emerald-500 shadow-cyan-500/50" : "bg-blue-600 shadow-blue-500/50" 
       )}>
         <p className="text-blue-100 text-xs font-bold uppercase tracking-wider mb-1">
           {selectedCategory === 'All' 
@@ -103,7 +103,7 @@ export default function TransactionList({ type = 'expense' }) {
         <button 
           onClick={() => setSelectedCategory('All')}
           className={cn(
-            "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm border",
+            "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-xl border",
             selectedCategory === 'All' 
               ? (type === 'income' ? "bg-emerald-600 text-white border-emerald-600" : "bg-blue-600 text-white border-blue-600")
               : "bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700"
@@ -117,9 +117,9 @@ export default function TransactionList({ type = 'expense' }) {
             key={cat.id}
             onClick={() => setSelectedCategory(cat.name)}
             className={cn(
-              "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-sm border flex items-center gap-2",
+              "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all shadow-xl border flex items-center gap-2",
               selectedCategory === cat.name
-                ? (type === 'income' ? "bg-emerald-600 text-white border-emerald-600" : "bg-blue-600 text-white border-blue-600")
+                ? (type === 'income' ? "bg-emerald-600 text-white border-emerald-600" : "bg-blue-800 text-white border-blue-600")
                 : "bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700"
             )}
           >
@@ -159,12 +159,12 @@ export default function TransactionList({ type = 'expense' }) {
             return (
               <div 
                 key={t.id} 
-                className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 flex items-center justify-between group active:scale-98 transition-transform"
+                className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-300 dark:border-slate-700 flex shadow-lg items-center justify-between group active:scale-98 transition-transform"
               >
                 <div className="flex items-center gap-4">
                   {/* Changed from charAt(0) to IconComponent */}
                   <div 
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm" 
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-xl" 
                     style={{ backgroundColor: cat.color || '#94a3b8' }}
                   >
                     <IconComponent className="w-5 h-5" />
@@ -207,7 +207,7 @@ export default function TransactionList({ type = 'expense' }) {
       <button 
         onClick={handleAddNew} 
         className={cn(
-          "fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-xl flex items-center justify-center text-white transition-transform hover:scale-110 active:scale-90 z-40", 
+          "fixed bottom-32 right-4 p-4 bg-indigo-600 text-white rounded-full shadow-2xl hover:bg-indigo-700 transition-transform active:scale-90 z-[60] flex items-center gap-2 font-bold", 
           type === 'income' ? "bg-emerald-500 shadow-emerald-500/40" : "bg-blue-600 shadow-blue-600/40"
         )}
       >

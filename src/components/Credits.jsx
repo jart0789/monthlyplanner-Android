@@ -4,8 +4,8 @@ import { CreditCard, Landmark, Plus, Trash2, X, History, Pencil, ChevronDown, Al
 import { useFinance } from '../contexts/FinanceContext';
 import { format, parseISO, isSameDay, addMonths, isAfter } from 'date-fns';
 import CreditStepper from './CreditStepper';
+import PaymentModal from './PaymentModal'; // <--- 1. Imported PaymentModal
 
-  
 // --- DETAIL MODAL ---
 const CreditDetailModal = ({ credit, onClose, onDelete, formatCurrency }) => {
   const { recordCreditPayment } = useFinance();
@@ -122,6 +122,10 @@ export default function Credits() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingCredit, setEditingCredit] = useState(null);
   const [selectedCredit, setSelectedCredit] = useState(null);
+  
+  // --- 2. MODAL STATE ---
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [selectedCreditForPay, setSelectedCreditForPay] = useState(null);
 
   // --- TOAST STATE ---
   const [toast, setToast] = useState(null);
@@ -223,12 +227,16 @@ export default function Credits() {
     return { totalDebt, monthlyCommitment };
   }, [credits]);
 
+  // --- 3. UPDATED HANDLER TO OPEN MODAL ---
   const handlePayClick = (credit) => {
-    const label = credit.autopay ? `Enter EXTRA payment for ${credit.name}:` : `Enter payment for ${credit.name}:`;
-    const defaultAmount = credit.autopay ? '' : credit.minPayment;
-    const amountStr = prompt(label, defaultAmount);
-    if (amountStr !== null && amountStr.trim() !== '' && !isNaN(parseFloat(amountStr))) {
-      processManualPayment(credit, parseFloat(amountStr), credit.autopay ? 'Extra Payment' : 'Manual Payment');
+    setSelectedCreditForPay(credit);
+    setIsPayModalOpen(true);
+  };
+
+  // --- 4. HANDLER TO PROCESS PAYMENT FROM MODAL ---
+  const handleConfirmPayment = (amount, note) => {
+    if (selectedCreditForPay) {
+      processManualPayment(selectedCreditForPay, amount, note);
     }
   };
 
@@ -249,11 +257,11 @@ export default function Credits() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl">
           <p className="text-xs font-bold uppercase text-slate-500 mb-1">Total Debt</p>
           <h2 className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(stats.totalDebt)}</h2>
         </div>
-        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl">
           <p className="text-xs font-bold uppercase text-slate-500 mb-1">Monthly Min</p>
           <h2 className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(stats.monthlyCommitment)}</h2>
         </div>
@@ -269,7 +277,7 @@ export default function Credits() {
            const displayname = c.name;
            
            return (
-            <div key={c.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-lg border border-slate-200 relative overflow-hidden">
+            <div key={c.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-lg border border-slate-300 dark:border-slate-700 relative overflow-hidden">
               {c.autopay && (
                   <div className="absolute top-0 right-0 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-l border-b border-emerald-500/20">
                       AUTOPAY ACTIVE
@@ -360,6 +368,14 @@ export default function Credits() {
       {selectedCredit && (
         <CreditDetailModal credit={selectedCredit} onClose={() => setSelectedCredit(null)} onDelete={deleteCredit} formatCurrency={formatCurrency} />
       )}
+
+      {/* --- 5. PAYMENT MODAL ADDED HERE --- */}
+      <PaymentModal 
+        isOpen={isPayModalOpen}
+        onClose={() => setIsPayModalOpen(false)}
+        onConfirm={handleConfirmPayment}
+        credit={selectedCreditForPay}
+      />
     </div>
   );
 }

@@ -65,7 +65,7 @@ export const analyzeFinances = (transactions, credits, stats) => {
           type: 'warning',
           title: 'High Utilization',
           text: `${card.name} is at ${utilPercent}% utilization. Pay it down to improve your score.`,
-          Icon: AlertCircle,
+          Icon: AlertCircle,    
           gradient: 'from-purple-500 to-indigo-600'
       });
   });

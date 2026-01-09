@@ -9,7 +9,7 @@ import ApiKeyModal from './ApiKeyModal';
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 export default function AdvisorChat({ onClose }) {
-  // 1. EXTRACT CATEGORIES HERE (Critical update)
+  // 1. EXTRACT CATEGORIES (Maintained)
   const { transactions, credits, categories } = useFinance();
   
   const [messages, setMessages] = useState([]);
@@ -17,8 +17,6 @@ export default function AdvisorChat({ onClose }) {
   const [isTyping, setIsTyping] = useState(false);
   const [hasKey, setHasKey] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
-  
-  // Optional: If you have voice logic, keep it; otherwise these defaults work
   const [isListening, setIsListening] = useState(false); 
 
   const endRef = useRef(null);
@@ -44,6 +42,37 @@ export default function AdvisorChat({ onClose }) {
     }
   };
 
+  // --- FIX: Added the missing startListening function ---
+  const startListening = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      alert("Voice input is not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(prev => prev + (prev ? ' ' : '') + transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+  // ----------------------------------------------------
+
   const handleSend = async () => {
     if (!input.trim()) return;
     const userText = input;
@@ -51,8 +80,7 @@ export default function AdvisorChat({ onClose }) {
     setMessages(prev => [...prev, { id: Date.now(), text: userText, sender: 'user' }]);
     setIsTyping(true);
 
-    // 2. PASS CATEGORIES TO AI FUNCTION
-    // This allows the AI to see your budget structure
+    // 2. PASS CATEGORIES TO AI FUNCTION (Maintained)
     const reply = await processUserMessage(userText, transactions, credits, categories);
     
     setMessages(prev => [...prev, { id: Date.now() + 1, text: reply.text, sender: 'bot' }]);
@@ -67,6 +95,7 @@ export default function AdvisorChat({ onClose }) {
   
   return (
     <>
+      {/* MAIN CONTAINER: Uses h-[100dvh] to fit mobile screens perfectly */}
       <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-50 dark:bg-slate-900 w-full h-[100dvh]">
         
         {/* --- HEADER --- */}
@@ -87,7 +116,7 @@ export default function AdvisorChat({ onClose }) {
             </button>
         </div>
 
-        {/* --- CHAT AREA --- */}
+        {/* --- CHAT AREA (Flex-1 takes all available space) --- */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {!hasKey && (
                 <div className="text-center mt-20 px-6 animate-fade-in">
@@ -128,21 +157,23 @@ export default function AdvisorChat({ onClose }) {
             <div ref={endRef} />
         </div>
 
-        {/* --- INPUT AREA (SAFE AREA FIXED) --- */}
-        <div 
-            className="flex-none p-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800"
+        {/* --- INPUT AREA (FIXED) --- */}
+        {/* We use flex-none so it doesn't grow. We removed 'bottom-32'. */}
+       <div 
+            className="flex-none bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 w-full"
             style={{ 
-                // 👇 This prevents the input from being hidden behind Android nav buttons
-                paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
-                paddingTop: '12px'
+                // 👇 FIX: Increased base padding from 16px to 32px to lift it higher
+                paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',
+                paddingTop: '12px',
+                paddingLeft: '12px',
+                paddingRight: '12px'
             }}
         >
-            <div className="flex items-center gap-2">
-                {/* Voice Button (Optional) */}
+            <div className="flex items-center gap-2 max-w-3xl mx-auto">
                 <button 
                     onClick={startListening} 
                     className={cn(
-                        "p-3 rounded-full transition-all active:scale-95", 
+                        "p-3 rounded-full transition-all active:scale-95 flex-shrink-0", 
                         isListening ? "bg-red-500 text-white animate-pulse" : "bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200"
                     )}
                 >
@@ -155,13 +186,13 @@ export default function AdvisorChat({ onClose }) {
                     disabled={!hasKey}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     placeholder={hasKey ? "Ask a question..." : "Connect Key first"}
-                    className="flex-1 bg-slate-100 dark:bg-slate-800 h-12 rounded-full px-5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent transition-all"
+                    className="flex-1 bg-slate-100 dark:bg-slate-800 h-12 rounded-full px-5 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 border border-transparent transition-all min-w-0"
                 />
                 
                 <button 
                     onClick={handleSend} 
                     disabled={!input.trim()} 
-                    className="p-3 bg-indigo-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
+                    className="p-3 bg-indigo-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-500/20 active:scale-95 transition-all flex-shrink-0"
                 >
                     <Send className="w-5 h-5" />
                 </button>
@@ -182,5 +213,4 @@ export default function AdvisorChat({ onClose }) {
         }} 
       />
     </>
-  );
-}
+  );}

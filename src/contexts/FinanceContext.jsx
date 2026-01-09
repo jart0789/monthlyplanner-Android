@@ -7,7 +7,7 @@ const FinanceContext = createContext(undefined);
 
 // --- CONFIGURATION ---
 // Set your testing time here
-const NOTIFICATION_TIME = "14:50"; 
+const NOTIFICATION_TIME = "06:00"; 
 
 const DEFAULT_CATEGORIES = [
   { id: 'c1', name: 'Housing', type: 'expense', icon: 'Home', color: '#3B82F6', notificationsEnabled: false },
@@ -161,7 +161,7 @@ export function FinanceProvider({ children }) {
     return () => clearTimeout(timer);
   }, [transactions.length]);
 
-  // --- 2. AUTO-PAY ENGINE ---
+// --- 2. AUTO-PAY ENGINE ---
   useEffect(() => {
     const processAutoPay = () => {
       const today = new Date();
@@ -171,13 +171,24 @@ export function FinanceProvider({ children }) {
           if ((c.currentBalance || 0) <= 0) return; 
 
           const due = getLocalDate(c.dueDate);
+          
           if (isSameDay(today, due)) {
-            recordCreditPayment(c.id, c.minPayment, today.toISOString(), 'Auto-Pay');
+            // FIX: Check if we ALREADY paid today to prevent infinite loop
+            const alreadyPaid = c.history?.some(h => 
+              isSameDay(parseISO(h.date), today) && 
+              (h.note === 'Auto-Pay' || h.note === 'Autopay') // Checks for both namings just in case
+            );
+
+            if (!alreadyPaid) {
+              recordCreditPayment(c.id, c.minPayment, today.toISOString(), 'Auto-Pay');
+            }
           }
         }
       });
-    };
+    };// Run immediately on load/change
     processAutoPay();
+    
+    // Keep the daily interval
     const interval = setInterval(processAutoPay, 86400000); 
     return () => clearInterval(interval);
   }, [credits]);
