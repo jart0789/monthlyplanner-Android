@@ -2,287 +2,80 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-// --- TRANSLATION RESOURCES ---
-const resources = {
-  en: {
-    translation: {
-      dashboard: "Dashboard",
-      income: "Income",
-      expenses: "Expenses",
-      credits: "Credits",
-      settings: "Settings",
-      add: "Add",
-      edit: "Edit",
-      delete: "Delete",
-      save: "Save",
-      cancel: "Cancel",
-      back: "Back",
-      pay_now: "Pay Now",
-      history: "History",
-      close: "Close",
-      category: "Category",
-      amount: "Amount",
-      date: "Date",
-      notes: "Notes",
-      type: "Type",
-      name: "Name",
-      total_debt: "Total Debt",
-      monthly_min: "Monthly Min",
-      monthly_debt: "Monthly Debt",
-      min_payment: "Min Payment",
-      current_balance: "Current Balance",
-      total_limit: "Total Limit",
-      balance_owed: "Balance Owed",
-      apr: "APR",
-      progress: "Progress",
-      due_date: "Due Date",
-      next_due_date: "Next Due Date",
-      autopay_active: "AUTOPAY ACTIVE",
-      enable_autopay: "Enable Autopay",
-      autopay_desc: "Automatic min payment on due date",
-      extra_payment: "Extra Payment",
-      manual_payment: "Manual Payment",
-      proj_income: "Proj Income",
-      proj_bills: "Proj Bills",
-      recurring_exp: "Recurring Expenses",
-      cashflow_activity: "Cashflow Activity",
-      last_30_days: "Last 30 Days",
-      projected_budget: "Projected Budget",
-      forecast_desc: "Income - (Bills + Debt)",
-      due_next_14: "Due Next 14 Days",
-      no_upcoming: "No Upcoming Payments",
-      recurring: "Recurring",
-      frequency: "Frequency",
-      how_often: "How Often?",
-      weekly: "Weekly",
-      biweekly: "Bi-Weekly",
-      monthly: "Monthly",
-      yearly: "Yearly",
-      credit_card: "Credit Card",
-      loan: "Loan",
-      housing: "Housing",
-      food: "Food",
-      transport: "Transport",
-      utilities: "Utilities",
-      entertainment: "Entertainment",
-      salary: "Salary",
-      proj_forecast: "Proj Forecast",
-      ai_advisor: "AI Advisor",
-      adv_critical: "Critical: Expenses exceed income.",
-      adv_warning: "Warning: Low cash flow.",
-      adv_healthy: "Healthy: Your forecast is good.",
-      notifications: "Notifications",
-      payment_reminders: "Payment Reminders",
-      payment_reminders_desc: "Notify about upcoming credit payments",
-      proj_savings_rate: "Proj Savings Rate",
-      great_job: "Great Job",
-      deficit_alert: "Deficit Alert",
-      savings_goal: "Savings Goal",
-      high_utilization: "High Utilization",
-      theme: "Theme",
-      language: "Language",
-      currency: "Currency",
-      general: "General",
-      categories: "Categories"
-    }
-  },
-  es: {
-    translation: {
-      dashboard: "Tablero",
-      income: "Ingresos",
-      expenses: "Gastos",
-      credits: "Crédito",
-      settings: "Configuraciones",
-      add: "Añadir",
-      edit: "Editar",
-      delete: "Eliminar",
-      save: "Guardar",
-      cancel: "Cancelar",
-      back: "Atrás",
-      pay_now: "Pagar Ahora",
-      history: "Historia",
-      close: "Cerrar",
-      category: "Categoría",
-      amount: "Cantidad",
-      date: "Fecha",
-      notes: "Notas",
-      type: "Tipo",
-      name: "Nombre",
-      total_debt: "Deuda Total",
-      monthly_min: "Mínimo Mensual",
-      monthly_debt: "Deuda Mensual",
-      min_payment: "Pago Mínimo",
-      current_balance: "Saldo Actual",
-      total_limit: "Límite Total",
-      balance_owed: "Saldo Adeudado",
-      apr: "Tasa Efectiva Anual (APR)",
-      progress: "Progreso",
-      due_date: "Fecha de Vencimiento",
-      next_due_date: "Próxima Fecha de Vencimiento",
-      autopay_active: "AUTOPAGO ACTIVO",
-      enable_autopay: "Habilitar Autopago",
-      autopay_desc: "Pago mínimo automático en la fecha de vencimiento",
-      extra_payment: "Pago Extra",
-      manual_payment: "Pago Manual",
-      proj_income: "Ingresos Proyectados",
-      proj_bills: "Cuentas Proyectadas",
-      recurring_exp: "Gastos Recurrentes",
-      cashflow_activity: "Actividad de Flujo de Caja",
-      last_30_days: "Últimos 30 Días",
-      projected_budget: "Presupuesto Proyectado",
-      forecast_desc: "Ingresos - (Cuentas + Deuda)",
-      due_next_14: "Vencimientos Próximos 14 Días",
-      no_upcoming: "No Hay Pagos Próximos",
-      recurring: "Recurrente",
-      frequency: "Frecuencia",
-      how_often: "¿Con qué frecuencia?",
-      weekly: "Semanal",
-      biweekly: "Quincenal",
-      monthly: "Mensual",
-      yearly: "Anual",
-      credit_card: "Tarjeta de Crédito",
-      loan: "Préstamo",
-      housing: "Vivienda",
-      food: "Comida",
-      transport: "Transporte",
-      utilities: "Utilidades",
-      entertainment: "Entretenimiento",
-      salary: "Salario",
-      proj_forecast: "Pronóstico Proyectado",
-      ai_advisor: "Asesor IA",
-      adv_critical: "Crítico: Gastos exceden ingresos.",
-      adv_warning: "Advertencia: Bajo flujo de caja.",
-      adv_healthy: "Saludable: Tu pronóstico es bueno.",
-      notifications: "Notificaciones",
-      payment_reminders: "Recordatorios de Pago",
-      payment_reminders_desc: "Notificar sobre pagos de crédito próximos",
-      proj_savings_rate: "Tasa de Ahorro Proyectada",
-      great_job: "¡Buen Trabajo!",
-      deficit_alert: "Alerta de Déficit",
-      savings_goal: "Objetivo de Ahorros",
-      high_utilization: "Alta Utilización",
-      theme: "Tema",
-      language: "Idioma",
-      currency: "Moneda",
-      general: "General",
-      categories: "Categorías"
-    }
-  },
-  pt: {
-    translation: {
-      dashboard: "Painel",
-      income: "Renda",
-      expenses: "Despesas",
-      credits: "Créditos",
-      settings: "Configurações",
-      add: "Adicionar",
-      edit: "Editar",
-      delete: "Excluir",
-      save: "Salvar",
-      cancel: "Cancelar",
-      back: "Voltar",
-      pay_now: "Pagar Agora",
-      history: "Histórico",
-      close: "Fechar",
-      category: "Categoria",
-      amount: "Quantia",
-      date: "Data",
-      notes: "Notas",
-      type: "Tipo",
-      name: "Nome",
-      total_debt: "Dívida Total",
-      monthly_min: "Mínimo Mensal",
-      monthly_debt: "Dívida Mensal",
-      min_payment: "Pagamento Mínimo",
-      current_balance: "Saldo Atual",
-      total_limit: "Limite Total",
-      balance_owed: "Saldo Devido",
-      apr: "Taxa Anual Efetiva (APR)",
-      progress: "Progresso",
-      due_date: "Data de Vencimento",
-      next_due_date: "Próxima Data de Vencimento",
-      autopay_active: "AUTOPAGAMENTO ATIVO",
-      enable_autopay: "Ativar Autopagamento",
-      autopay_desc: "Pagamento mínimo automático na data de vencimento",
-      extra_payment: "Pagamento Extra",
-      manual_payment: "Pagamento Manual",
-      proj_income: "Renda Projetada",
-      proj_bills: "Contas Projetadas",
-      recurring_exp: "Despesas Recurrentes",
-      cashflow_activity: "Atividade de Fluxo de Caixa",
-      last_30_days: "Últimos 30 Dias",
-      projected_budget: "Orçamento Projetado",
-      forecast_desc: "Renda - (Contas + Dívida)",
-      due_next_14: "Vencimentos Próximos 14 Dias",
-      no_upcoming: "Sem Pagamentos Próximos",
-      recurring: "Recorrente",
-      frequency: "Frequência",
-      how_often: "Com que frequência?",
-      weekly: "Semanal",
-      biweekly: "Quinzenal",
-      monthly: "Mensal",
-      yearly: "Anual",
-      credit_card: "Cartão de Crédito",
-      loan: "Empréstimo",
-      housing: "Habitação",
-      food: "Comida",
-      transport: "Transporte",
-      utilities: "Utilitários",
-      entertainment: "Entretenimento",
-      salary: "Salário",
-      proj_forecast: "Previsão Projetada",
-      ai_advisor: "Consultor IA",
-      adv_critical: "Crítico: Despesas excedem renda.",
-      adv_warning: "Aviso: Baixo fluxo de caixa.",
-      adv_healthy: "Saudável: Sua previsão é boa.",
-      notifications: "Notificações",
-      payment_reminders: "Lembretes de Pagamento",
-      payment_reminders_desc: "Notificar sobre pagamentos de crédito próximos",
-      proj_savings_rate: "Taxa de Poupança Projetada",
-      great_job: "Ótimo Trabalho!",
-      deficit_alert: "Alerta de Déficit",
-      savings_goal: "Objetivo de Poupança",
-      high_utilization: "Alta Utilização",
-      theme: "Tema",
-      language: "Idioma",
-      currency: "Moeda",
-      general: "Geral",
-      categories: "Categorias"
-    }
-  },
-  // Note: I have included the main ones (En, Es, Pt). 
-  // The system will default to English for others if text is missing, 
-  // but the currency logic below supports all from your list.
-};
+
+import { en } from '../locales/en';
+import { es } from '../locales/es'; 
+import { fr } from '../locales/fr'; 
+import { de } from '../locales/de';
+import { it } from '../locales/it'; 
+import { pt } from '../locales/pt'; 
 
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources,
-    fallbackLng: 'en',
-    interpolation: {
-      escapeValue: false, 
+    resources: {
+      en: { ...en },
+      zh_tw: { ...en }, // Traditional Chinese
+      zh_cn: { ...en }, // Simplified Chinese
+      ja: { ...en },    // Japanese
+      ko: { ...en },    // Korean
+      id: { ...en },    // Indonesian
+      vi: { ...en },    // Vietnamese
+      fr: { ...en },    // French
+      es: { ...en },    // Spanish
+      tr: { ...en },    // Turkish
+      pl: { ...en },    // Polish
+      it: { ...en },    // Italian
+      pt: { ...en },    // Portuguese
+      nl: { ...en },    // Dutch
+      de: { ...en },    // German
+      ru: { ...en },    // Russian
+      bg: { ...en },    // Bulgarian
+      da: { ...en },    // Danish
+      fi: { ...en },    // Finnish
+      hu: { ...en },    // Hungarian
+      no: { ...en },    // Norwegian
+      ro: { ...en },    // Romanian
+      sk: { ...en },    // Slovak
+      sv: { ...en },    // Swedish
+      cs: { ...en },    // Czech
+      uk: { ...en },    // Ukrainian
+      el: { ...en },    // Greek
     },
-    detection: {
-      order: ['localStorage', 'navigator'],
-      caches: ['localStorage'],
-    }
+    fallbackLng: "en",
+    interpolation: { escapeValue: false }
   });
 
 export default i18n;
 
+// The list for your Settings Page Dropdown
 export const LANGUAGES = [
   { code: 'en', label: 'English', currency: 'USD' },
-  { code: 'es', label: 'Español', currency: 'EUR' },
-  { code: 'fr', label: 'Français', currency: 'EUR' },
-  { code: 'de', label: 'Deutsch', currency: 'EUR' },
-  { code: 'zh', label: '简体中文', currency: 'CNY' },
-  { code: 'pt', label: 'Português', currency: 'BRL' },
-  { code: 'hi', label: 'हिन्दी', currency: 'INR' },
+  { code: 'zh_tw', label: '繁體中文', currency: 'TWD' },
+  { code: 'zh_cn', label: '简体中文', currency: 'CNY' },
   { code: 'ja', label: '日本語', currency: 'JPY' },
-  { code: 'ru', label: 'Русский', currency: 'RUB' },
-  { code: 'ar', label: 'العربية', currency: 'SAR', dir: 'rtl' },
-  { code: 'it', label: 'Italiano', currency: 'EUR' },
   { code: 'ko', label: '한국어', currency: 'KRW' },
+  { code: 'id', label: 'Bahasa Indonesia', currency: 'IDR' },
+  { code: 'vi', label: 'Tiếng Việt', currency: 'VND' },
+  { code: 'fr', label: 'Français', currency: 'EUR' },
+  { code: 'es', label: 'Español', currency: 'EUR' },
+  { code: 'tr', label: 'Türkçe', currency: 'TRY' },
+  { code: 'pl', label: 'Polski', currency: 'PLN' },
+  { code: 'it', label: 'Italiano', currency: 'EUR' },
+  { code: 'pt', label: 'Português', currency: 'BRL' },
+  { code: 'nl', label: 'Nederlands', currency: 'EUR' },
+  { code: 'de', label: 'Deutsch', currency: 'EUR' },
+  { code: 'ru', label: 'Русский', currency: 'RUB' },
+  { code: 'bg', label: 'български', currency: 'BGN' },
+  { code: 'da', label: 'Dansk', currency: 'DKK' },
+  { code: 'fi', label: 'Suomi', currency: 'EUR' },
+  { code: 'hu', label: 'Magyar', currency: 'HUF' },
+  { code: 'no', label: 'Norsk', currency: 'NOK' },
+  { code: 'ro', label: 'Română', currency: 'RON' },
+  { code: 'sk', label: 'Slovenský', currency: 'EUR' },
+  { code: 'sv', label: 'Svenska', currency: 'SEK' },
+  { code: 'cs', label: 'Čeština', currency: 'CZK' },
+  { code: 'uk', label: 'Українська', currency: 'UAH' },
+  { code: 'el', label: 'Ελληνικά', currency: 'EUR' },
 ];

@@ -4,11 +4,12 @@ import * as LucideIcons from 'lucide-react'; // Added to map icon strings to com
 import { useFinance } from '../contexts/FinanceContext';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { format, parseISO, isSameMonth, startOfDay, subDays } from 'date-fns';
+
 import { cn } from '../lib/utils';
 // IMPORTS
 import AdvisorChat from './AdvisorChat';
 import { analyzeFinances } from '../utils/smartAdvisor';
-
+import { useTranslation } from 'react-i18next';
 const COLORS = ['#0cb606ff', '#F43F5E', '#3B82F6', '#F59E0B', '#8B5CF6', '#6366f1'];
 
 // Added onNavigate prop to handle card clicks
@@ -16,7 +17,7 @@ export default function Dashboard({ onNavigate }) {
   const { transactions, credits, formatCurrency, t, dailyReminders, dismissReminder, categories } = useFinance(); // Destructured categories
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [dismissedAdvice, setDismissedAdvice] = useState([]);
-  
+    
   const today = new Date();
 
   // --- SWIPE LOGIC ---
@@ -200,7 +201,7 @@ export default function Dashboard({ onNavigate }) {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard')}</h1>
         <div className={cn("px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300")}>
-          {freeCashPercent}% Projected Free
+          {freeCashPercent}{t('% Projected Free')}
         </div>
       </div>
 
@@ -219,8 +220,8 @@ export default function Dashboard({ onNavigate }) {
                     <div className="flex items-center gap-3">
                        <div className="p-3 bg-white/20 rounded-2xl text-white"><Bell className="w-6 h-6 animate-pulse"/></div>
                        <div className="text-white">
-                          <h3 className="font-bold text-lg leading-tight">Friendly Reminder</h3>
-                          <p className="text-indigo-100 text-sm mt-1 leading-relaxed">Time to pay <span className="font-bold text-white">{reminder.category}</span><br/><span className="italic opacity-80">({reminder.note})</span></p>
+                          <h3 className="font-bold text-lg leading-tight">{t('Friendly Reminder')}</h3>
+                          <p className="text-indigo-100 text-sm mt-1 leading-relaxed">{t('Time to pay')} <span className="font-bold text-white">{reminder.category}</span><br/><span className="italic opacity-80">({reminder.note})</span></p>
                           <div className="mt-2 inline-block px-2 py-1 bg-white/10 rounded-lg text-xs font-bold border border-white/10">{formatCurrency(reminder.amount)}</div>
                        </div>
                     </div>
@@ -243,7 +244,7 @@ export default function Dashboard({ onNavigate }) {
           className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-xl cursor-pointer active:scale-95 transition-transform hover:bg-slate-50 dark:hover:bg-slate-700/50"
         >
           <div className="mx-auto w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-2"><TrendingUp className="w-4 h-4"/></div>
-          <p className="text-[10px] text-slate-400 font-bold uppercase">Income</p>
+          <p className="text-[10px] text-slate-400 font-bold uppercase">{t('Income')}</p>
           <p className="text-sm font-bold text-slate-900 dark:text-white">{formatCurrency(stats.monthlyIncome)}</p>
         </div>
         
@@ -252,7 +253,7 @@ export default function Dashboard({ onNavigate }) {
           className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-xl cursor-pointer active:scale-95 transition-transform hover:bg-slate-50 dark:hover:bg-slate-700/50"
         >
           <div className="mx-auto w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-2"><TrendingDown className="w-4 h-4"/></div>
-          <p className="text-[10px] text-slate-400 font-bold uppercase">Expenses</p>
+          <p className="text-[10px] text-slate-400 font-bold uppercase">{t('Expenses')}</p>
           <p className="text-sm font-bold text-slate-900 dark:text-white">{formatCurrency(stats.recurringExpenses)}</p>
         </div>
         
@@ -261,7 +262,7 @@ export default function Dashboard({ onNavigate }) {
           className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-xl cursor-pointer active:scale-95 transition-transform hover:bg-slate-50 dark:hover:bg-slate-700/50"
         >
           <div className="mx-auto w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mb-2"><CreditCard className="w-4 h-4"/></div>
-          <p className="text-[10px] text-slate-400 font-bold uppercase">Monthly Debt</p>
+          <p className="text-[10px] text-slate-400 font-bold uppercase">{t('Monthly Debt')}</p>
           <p className="text-sm font-bold text-slate-900 dark:text-white">{formatCurrency(stats.monthlyDebtMin)}</p>
         </div>
       </div>
@@ -269,8 +270,8 @@ export default function Dashboard({ onNavigate }) {
       {/* PIE CHART WITH EMPTY STATE */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700">
         <div className="text-center mb-6">
-          <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">Projected Monthly Budget</p>
-          <p className="text-slate-400 text-xs font-medium mt-1">Income - (Recurring Bills + Debt)</p>
+          <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">{t('Projected Monthly Budget')}</p>
+          <p className="text-slate-400 text-xs font-medium mt-1">{t('Income - (Recurring Bills + Debt)')}</p>
           <div className="flex items-center justify-center gap-2 mt-2">
             <h2 className={cn("text-4xl font-black", stats.netForecast >= 0 ? "text-slate-900 dark:text-white" : "text-rose-500")}>{formatCurrency(stats.netForecast)}</h2>
              <div className={cn("px-2 py-1 rounded-full text-xs font-bold", stats.projectedSavingsRate >= 0 ? "bg-emerald-500 text-emerald-100" : "bg-rose-600 text-rose-100")}>{stats.projectedSavingsRate > 0 ? '+' : ''}{stats.projectedSavingsRate.toFixed(1)}%</div>
@@ -304,7 +305,7 @@ export default function Dashboard({ onNavigate }) {
           {!hasChartData && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <p className="text-slate-400 text-sm font-medium text-center px-8">
-                    Add recurring items to see forecast
+                    {t('Add recurring items to see forecast')}
                 </p>
             </div>
           )}
@@ -315,12 +316,12 @@ export default function Dashboard({ onNavigate }) {
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800">
           <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-slate-400" /> Due Next 14 Days
+            <Calendar className="w-4 h-4 text-slate-400" /> {t('Due Next 14 Days')}
           </h3>
         </div>
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {upcoming.length === 0 ? (
-            <div className="p-6 text-center text-slate-400 text-sm">No upcoming payments</div>
+            <div className="p-6 text-center text-slate-400 text-sm">{t('No upcoming payments')}</div>
           ) : (
             upcoming.map(item => {
               const isCredit = item.type === 'credit';
@@ -379,8 +380,8 @@ export default function Dashboard({ onNavigate }) {
            <div className="p-5 rounded-2xl flex items-center gap-4 border border-slate-100 bg-white dark:bg-slate-800 dark:border-slate-700 shadow-xl">
               <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl"><Check className="w-6 h-6" /></div>
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-white">All Good!</h4>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Your finances are looking stable. No urgent actions needed.</p>
+                <h4 className="font-bold text-slate-900 dark:text-white">{t('All Good!')}</h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{t('Your finances are looking stable. No urgent actions needed.')}</p>
               </div>
            </div>
         )}
@@ -388,7 +389,7 @@ export default function Dashboard({ onNavigate }) {
 
       <button onClick={() => setIsChatOpen(true)} className="fixed bottom-32 right-4 p-4 bg-indigo-600 text-white rounded-full shadow-2xl hover:bg-indigo-700 transition-transform active:scale-90 z-[60] flex items-center gap-2 font-bold">
         <MessageSquare className="w-6 h-6" />
-        <span className="hidden sm:inline">Ask AI</span>
+        <span className="hidden sm:inline">{t('Ask AI')}</span>
       </button>
 
     {isChatOpen && <AdvisorChat onClose={() => setIsChatOpen(false)} visibleStats={stats} />}
