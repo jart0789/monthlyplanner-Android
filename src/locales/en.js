@@ -13,11 +13,20 @@ export const en = {
     delete: "Delete",
     edit: "Edit",
     add: "Add",
+    new: "New",
     close: "Close",
     loading: "Loading...",
     theme: "Theme",
     language: "Language",
     currency: "Currency",
+    step: "Step",
+    next: "Next",
+    next_step: "Next Step",
+    finish: "Finish",
+    total: "Total",
+    all: "All",
+    done: "Done",
+    is: "is at",
 
     // --- DASHBOARD ---
     projected_free: "% Projected Free",
@@ -29,6 +38,16 @@ export const en = {
     ask_ai: "Ask AI",
     all_good: "All Good!",
     finance_stable: "Your finances are looking stable. No urgent actions needed.",
+    deficit_alert: "Deficit Alert",
+    overspending: "You are projected to overspend by",
+    this_month: "this month.",
+    savings_goal: "You are saving",
+    try_aim_20: "Try to aim for 20%.",
+    great_job: "Great Job",
+    on_track_save: "You are on track to save",
+    of_income: "of your income.",
+    high_util: "High Utilization",
+    pay_down_improve: "Pay it down to improve your score.",
     
     // --- CREDITS / DEBT ---
     total_debt: "Total Debt",
@@ -37,6 +56,7 @@ export const en = {
     current_balance: "Current Balance",
     utilization: "Utilization",
     apr: "APR",
+    progress: "Progress",
     min_payment: "Min Payment",
     next_due: "Next Due",
     pay_now: "Pay Now",
@@ -47,7 +67,39 @@ export const en = {
     no_payments_yet: "No payments yet",
     enter_payment_amount: "Enter Payment Amount",
     record_payment: "Record Payment",
-    record_payment_for: "Record Payment for {{name}}", // {{name}} is dynamic
+    record_payment_for: "Record Payment for {{name}}",
+    
+    // --- CREDIT STEPPER ---
+    edit_credit: "Edit Credit",
+    add_new_credit: "Add New Credit",
+    what_type_credit: "What type of credit?",
+    choose_category_fit: "Choose the category that best fits.",
+    credit_card: "Credit Card",
+    loan: "Loan",
+    account_name: "Account Name",
+    credit_name_placeholder: "e.g. Chase Sapphire",
+    loan_name_placeholder: "e.g. Car Loan",
+    the_numbers: "The Numbers",
+    how_much_owe: "How much do you owe?",
+    total_credit_limit: "Total Credit Limit",
+    total_loan_amount: "Total Loan Amount",
+    current_balance_owed: "Current Balance Owed",
+    final_details: "Final Details",
+    interest_payments: "Interest and Payments",
+    next_due_date: "Next Due Date",
+    enable_autopay: "Enable Autopay",
+    autopay_desc_short: "Automatically record Min Payment on due date",
+    save_changes: "Save Changes",
+    save_debt: "Save Debt",
+    please_enter_name: "Please enter a name",
+    please_enter_amounts: "Please enter amounts",
+    error_balance_limit: "Error: The balance (${{balance}}) cannot exceed the credit limit (${{limit}}).",
+    error_min_payment: "Error: Minimum payment (${{minPayment}}) cannot exceed the current balance (${{balance}}).",
+
+    // --- PAYMENT MODAL ---
+    make_payment: "Make Payment",
+    autopay_payment_desc: "This account is on Autopay. This amount will be recorded as an EXTRA payment towards {{name}}.",
+    manual_payment_desc: "Enter the payment amount for {{name}}.",
     
     // --- TRANSACTIONS / FORMS ---
     new_income: "New Income",
@@ -70,6 +122,12 @@ export const en = {
     freq_biweekly_hint: "Multiplies amount by 2 for monthly stats.",
     freq_monthly_hint: "Counts once per month.",
     save_payment: "Save Payment",
+    save_transaction: "Save Transaction",
+    enter_amount_category_error: "Please enter an amount and select a category",
+    confirm_delete: "Are you sure you want to delete this?",
+    total_income: "Total Income",
+    total_expenses: "Total Expenses",
+    no_transactions_found: "No transactions found",
     
     // --- ADVISOR CHAT ---
     advisor_title: "FinTracker AI",
@@ -86,23 +144,34 @@ export const en = {
     connect_ai_subtitle: "Free, private, and secure.",
     how_to_get_key: "How to get your key (It takes 30 seconds):",
     step_1: "Tap the button below to open Google's secure key page.",
-    step_2: "Tap 'Get API key', then select 'Create API key in new project'.",
+    step_2_1: "Tap",
+    step_2_2: "'Get API key',",
+    step_2_3: "then select ",
+    step_2_4: "'Create API key in new project'",
     step_3: "Copy the long code that starts with 'AIza' and paste it here.",
     tap_to_get_key: "Tap here to get your Key",
     opens_google: "Opens Google AI Studio",
+    Connecting: "Connecting...",
     paste_key_here: "Paste Key Here",
     connect_my_assistant: "Connect My Assistant",
     do_later: "I'll do this later",
     connected_success: "Connected!",
     got_it: "Got it",
+    note: "Note",
+    free_tier: "You are using the Free Tier of Google Gemini.",
+    limit: "Limit: ",
+    limit_amount: "15 requests per minute",
+    personal_use: "This is usually enough for personal use.",
+    rate_limit: "If you exceed this limit, it will trigger a rate limit error.",
+    closed_in_seconds: "Closing in a few seconds...",
+    got_it_button: "Got it",
     
-    // --- NOTIFICATIONS & TOASTS ---
+    // --- NOTIFICATIONS ---
     friendly_reminder: "Friendly Reminder",
     time_to_pay: "Time to pay",
     payment_error: "Payment Error",
     please_enter_amount: "Please enter a payment amount.",
     payment_exceeds_balance: "Payment cannot exceed current balance.",
-
 
     // --- SETTINGS PAGE ---
     general_tab: "General",
@@ -123,6 +192,8 @@ export const en = {
     connect_key_msg: "Connect your Google Gemini Key to enable the AI Advisor.",
     go_to_chat: "Go to Dashboard > Chat to setup.",
     confirm_disconnect: "Disconnect your Google API Key? You will need to enter it again to use the AI Advisor.",
+    test_schedule: "Test Schedule",
+    eg: "e.g. Groceries",
     
     // --- CATEGORIES TAB ---
     edit_category: "Edit Category",
@@ -139,5 +210,49 @@ export const en = {
     reminders_on: "Reminders On",
     delete_cat_confirm: "Delete this category?",
     cat_name_req: "Category name is required",
+
+// --- MONTHS (Full) ---
+    month_january: "January",
+    month_february: "February",
+    month_march: "March",
+    month_april: "April",
+    month_may: "May",
+    month_june: "June",
+    month_july: "July",
+    month_august: "August",
+    month_september: "September",
+    month_october: "October",
+    month_november: "November",
+    month_december: "December",
+
+    // --- MONTHS (Short) ---
+    month_jan: "Jan",
+    month_feb: "Feb",
+    month_mar: "Mar",
+    month_apr: "Apr",
+    month_may_short: "May",
+    month_jun: "Jun",
+    month_jul: "Jul",
+    month_aug: "Aug",
+    month_sep: "Sep",
+    month_oct: "Oct",
+    month_nov: "Nov",
+    month_dec: "Dec",
+
+    // --- DAYS ---
+    day_monday: "Monday",
+    day_tuesday: "Tuesday",
+    day_wednesday: "Wednesday",
+    day_thursday: "Thursday",
+    day_friday: "Friday",
+    day_saturday: "Saturday",
+    day_sunday: "Sunday",
+
+    // --- NOTIFICATIONS & TOASTS ---
+    friendly_reminder: "Friendly Reminder",
+    time_to_pay: "Time to pay",
+    payment_error: "Payment Error",
+    please_enter_amount: "Please enter a payment amount.",
+    payment_exceeds_balance: "Payment cannot exceed current balance."
   }
 };

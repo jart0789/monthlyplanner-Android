@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
-// Make sure this path is correct for your project
 import { LANGUAGES } from '../utils/i18n'; 
 import { Moon, Sun, Globe, DollarSign, Plus, Trash2, Edit2, Check, Bell, CreditCard, RefreshCw, Brain } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
@@ -75,7 +74,7 @@ export default function Settings() {
   
   return (
     <div className="space-y-6 pb-24 animate-in fade-in">
-      {/* 1. Replaced "Settings" with t('settings') */}
+  
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('settings')}</h1>
 
       <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
@@ -229,7 +228,7 @@ export default function Settings() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                    <div>
                       <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">{t('cat_name')}</label>
-                      <input value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} placeholder="e.g. Groceries" className="w-full p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none focus:border-blue-500" />
+                      <input value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} placeholder={t('eg')} className="w-full p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none focus:border-blue-500" />
                    </div>
                    <div>
                       <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">{t('cat_type')}</label>

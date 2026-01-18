@@ -258,11 +258,11 @@ export default function Credits() {
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4">
         <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl">
-          <p className="text-xs font-bold uppercase text-slate-500 mb-1">Total Debt</p>
+          <p className="text-xs font-bold uppercase text-slate-500 mb-1">{t('total_debt')}</p>
           <h2 className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(stats.totalDebt)}</h2>
         </div>
         <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl">
-          <p className="text-xs font-bold uppercase text-slate-500 mb-1">Monthly Min</p>
+          <p className="text-xs font-bold uppercase text-slate-500 mb-1">{t('monthly_min')}</p>
           <h2 className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(stats.monthlyCommitment)}</h2>
         </div>
       </div>
@@ -280,13 +280,13 @@ export default function Credits() {
             <div key={c.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-lg border border-slate-300 dark:border-slate-700 relative overflow-hidden">
               {c.autopay && (
                   <div className="absolute top-0 right-0 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-l border-b border-emerald-500/20">
-                      AUTOPAY ACTIVE
+                      {t('autopay_active')}
                   </div>
               )}
 
               <div className="flex justify-between items-center mb-2 mt-2">
                 <div>
-                   <span className="text-slate-400 text-sm mr-2">Min Payment:</span>
+                   <span className="text-slate-400 text-sm mr-2">{t('min_payment')}:</span>
                    <span className="text-Grey font-bold text-lg">{formatCurrency(c.minPayment)}</span>              
                 </div>
                 <div className="text-blue-500 font-bold text-lg mr-2">
@@ -294,15 +294,15 @@ export default function Credits() {
                 </div>
               </div>
                 <div className="flex h-4 items-center mb-2 mt-4">
-                   <span className="text-slate-400 text-sm mr-2">Name:</span>
+                   <span className="text-slate-400 text-sm mr-2">{t('account_name')}:</span>
                    <span className="mb-1 text-Grey font-bold text-lg">{displayname}</span>
                </div>
                    <div className="flex h-4 items-center mb-2 mt-4">
-                   <span className="text-slate-400 text-sm mr-2">Balance:</span>
+                   <span className="text-slate-400 text-sm mr-2">{t('current_balance_owed')}:</span>
                    <span className="mb-1 text-Grey font-bold text-lg">{formatCurrency(current)}</span>
                </div>
-              <div className="flex h-2 justify-between items-end mb-2 mt-4">
-                 <span className="text-slate-400 text-sm">Progress</span>
+              <div className="flex h-4 justify-between items-end mb-2 mt-4">
+                 <span className="text-slate-400 text-sm">{t('progress')}</span>
                  <span className="text-grey font-bold">{progressPercent}%</span>
               </div>
 
@@ -316,7 +316,7 @@ export default function Credits() {
                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-emerald-900/20 flex flex-col items-center justify-center leading-none"
                  >
                    <span className="text-sm">{c.autopay ? 'Extra Payment' : 'Pay Now'}</span>
-                   {c.autopay && <span className="text-[10px] opacity-80 font-normal">Autopay is On</span>}
+                   {c.autopay && <span className="text-[10px] opacity-80 font-normal">{t('autopay_on')}</span>}
                  </button>
 
                  <button onClick={() => setSelectedCredit(c)} className="flex items-center gap-1 bg-slate-400 hover:bg-slate-500 text-slate-900 font-semibold py-3 px-4 rounded-xl transition-colors h-[42px]">
@@ -344,7 +344,7 @@ export default function Credits() {
             <div className="flex items-center gap-3">
               <AlertCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" />
               <div>
-                <p className="font-bold text-rose-800 dark:text-rose-300">Payment Error</p>
+                <p className="font-bold text-rose-800 dark:text-rose-300">{t('payment_error')}</p>
                 <p className="text-sm text-rose-700 dark:text-rose-400">{toast.message}</p>
               </div>
             </div>

@@ -12,7 +12,7 @@ const MODEL_NAME = "gemini-2.5-flash-lite";
 const BASE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent`;
 let insightIdCounter = 0;
 
-export const analyzeFinances = (transactions, credits, stats) => {
+export const analyzeFinances = (transactions, credits, stats,t) => {
   const insights = [];
   insightIdCounter = 0; // Reset per call for consistency
 
@@ -21,8 +21,8 @@ export const analyzeFinances = (transactions, credits, stats) => {
      insights.push({
         id: ++insightIdCounter,
         type: 'critical',
-        title: 'Deficit Alert',
-        text: `You are projected to overspend by $${Math.abs(stats.netForecast).toFixed(0)} this month.`,
+        title: t('deficit_alert'),
+        text: `${t('overspending')} $${Math.abs(stats.netForecast).toFixed(0)} ${t('this_month')}`,
         Icon: AlertCircle,
         gradient: 'from-rose-500 to-red-600'
      });
@@ -30,8 +30,8 @@ export const analyzeFinances = (transactions, credits, stats) => {
      insights.push({
         id: ++insightIdCounter,
         type: 'warning',
-        title: 'Savings Goal',
-        text: `You are saving ${stats.projectedSavingsRate.toFixed(1)}%. Try to aim for 20%.`,
+        title: t('savings_goal'),
+        text: t('savings_goal') + ` ${stats.projectedSavingsRate.toFixed(1)}%. ` + t('try_aim_20'), 
         Icon: Lightbulb,
         gradient: 'from-amber-500 to-orange-600'
      });
@@ -39,8 +39,8 @@ export const analyzeFinances = (transactions, credits, stats) => {
      insights.push({
         id: ++insightIdCounter,
         type: 'success',
-        title: 'Great Job',
-        text: `You are on track to save ${stats.projectedSavingsRate.toFixed(0)}% of your income.`,
+        title: t('great_job'),
+        text: `${t('on_track_save')} ${stats.projectedSavingsRate.toFixed(0)}% ${t('of_income')}`,
         Icon: CheckCircle,
         gradient: 'from-emerald-500 to-green-600'
      });
@@ -63,8 +63,8 @@ export const analyzeFinances = (transactions, credits, stats) => {
       insights.unshift({ // Push to front for priority
           id: ++insightIdCounter,
           type: 'warning',
-          title: 'High Utilization',
-          text: `${card.name} is at ${utilPercent}% utilization. Pay it down to improve your score.`,
+          title: t('high_util'),
+          text: `${card.name} ${t('is')} ${utilPercent}% ${t('utilization')}. ${t('pay_down_improve')}`,
           Icon: AlertCircle,    
           gradient: 'from-purple-500 to-indigo-600'
       });

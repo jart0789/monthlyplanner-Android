@@ -4,7 +4,7 @@ import { useFinance } from '../contexts/FinanceContext';
 import { cn } from '../lib/utils';
 
 export default function CreditStepper({ onClose, initialData = null }) {
-  const { addCredit, updateCredit } = useFinance();
+  const { addCredit, updateCredit, t } = useFinance();
   const [step, setStep] = useState(1);
   
   // Initialize with existing data if available
@@ -20,17 +20,17 @@ export default function CreditStepper({ onClose, initialData = null }) {
   });
 
   const handleNext = () => {
-    if (step === 1 && !formData.name) return alert("Please enter a name");
+    if (step === 1 && !formData.name) return alert(t('please_enter_name'));
     
     // VALIDATION 1: Balance vs Limit
     if (step === 2) {
-        if (!formData.totalAmount || !formData.currentBalance) return alert("Please enter amounts");
+        if (!formData.totalAmount || !formData.currentBalance) return alert(t('please_enter_amounts'));
         
         const limit = parseFloat(formData.totalAmount);
         const balance = parseFloat(formData.currentBalance);
         
         if (balance > limit) {
-            return alert(`Error: The balance ($${balance}) cannot exceed the credit limit ($${limit}).`);
+            return alert(t('error_balance_limit', { balance, limit }));
         }
     }
     
@@ -45,7 +45,7 @@ export default function CreditStepper({ onClose, initialData = null }) {
     const minPayment = parseFloat(formData.minPayment || 0);
 
     if (minPayment > balance) {
-        return alert(`Error: Minimum payment ($${minPayment}) cannot exceed the current balance ($${balance}).`);
+        return alert(t('error_min_payment', { minPayment, balance }));
     }
 
     if (initialData) {
@@ -83,9 +83,9 @@ export default function CreditStepper({ onClose, initialData = null }) {
             <div className="space-y-6 animate-in slide-in-from-right fade-in">
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-                  {initialData ? 'Edit Credit' : 'What type of credit?'}
+                  {initialData ? t('edit_credit') : t('what_type_credit')}
                 </h2>
-                <p className="text-slate-500">Choose the category that best fits.</p>
+                <p className="text-slate-500">{t('choose_category_fit')}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -99,7 +99,7 @@ export default function CreditStepper({ onClose, initialData = null }) {
                   )}
                 >
                   <CreditCard className="w-8 h-8" />
-                  <span className="font-bold">Credit Card</span>
+                  <span className="font-bold">{t('credit_card')}</span>
                 </button>
                 <button 
                   onClick={() => setFormData({...formData, type: 'loan'})}
@@ -111,16 +111,16 @@ export default function CreditStepper({ onClose, initialData = null }) {
                   )}
                 >
                   <Landmark className="w-8 h-8" />
-                  <span className="font-bold">Loan</span>
+                  <span className="font-bold">{t('loan')}</span>
                 </button>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Account Name</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">{t('account_name')}</label>
                 <input 
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
-                  placeholder={formData.type === 'creditCard' ? "e.g. Chase Sapphire" : "e.g. Car Loan"}
+                  placeholder={formData.type === 'creditCard' ? t('credit_name_placeholder') : t('loan_name_placeholder')}
                   className="w-full p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
                   autoFocus
                 />
@@ -132,13 +132,13 @@ export default function CreditStepper({ onClose, initialData = null }) {
           {step === 2 && (
             <div className="space-y-6 animate-in slide-in-from-right fade-in">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">The Numbers</h2>
-                <p className="text-slate-500">How much do you owe?</p>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{t('the_numbers')}</h2>
+                <p className="text-slate-500">{t('how_much_owe')}</p>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
-                  {formData.type === 'creditCard' ? 'Total Credit Limit' : 'Total Loan Amount'}
+                  {formData.type === 'creditCard' ? t('total_credit_limit') : t('total_loan_amount')}
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
@@ -154,7 +154,7 @@ export default function CreditStepper({ onClose, initialData = null }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Current Balance Owed</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">{t('current_balance_owed')}</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                   <input 
@@ -173,13 +173,13 @@ export default function CreditStepper({ onClose, initialData = null }) {
           {step === 3 && (
             <div className="space-y-6 animate-in slide-in-from-right fade-in">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Final Details</h2>
-                <p className="text-slate-500">Interest and Payments</p>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{t('final_details')}</h2>
+                <p className="text-slate-500">{t('interest_payments')}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">APR %</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">{t('apr')}</label>
                   <div className="relative">
                     <input 
                       type="number"
@@ -192,7 +192,7 @@ export default function CreditStepper({ onClose, initialData = null }) {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Min Payment</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">{t('min_payment')}</label>
                   <div className="relative">
                     <input 
                       type="number"
@@ -207,7 +207,7 @@ export default function CreditStepper({ onClose, initialData = null }) {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Next Due Date</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">{t('next_due_date')}</label>
                 <div className="relative">
                   <input 
                     type="date"
@@ -238,9 +238,9 @@ export default function CreditStepper({ onClose, initialData = null }) {
                   </div>
                   <div className="text-left">
                     <p className={cn("font-bold", formData.autopay ? "text-emerald-700 dark:text-emerald-400" : "text-slate-900 dark:text-white")}>
-                      Enable Autopay
+                      {t('enable_autopay')}
                     </p>
-                    <p className="text-xs text-slate-500">Automatically record Min Payment on due date</p>
+                    <p className="text-xs text-slate-500">{t('autopay_desc_short')}</p>
                   </div>
                 </div>
                 <div className={cn(
@@ -265,7 +265,7 @@ export default function CreditStepper({ onClose, initialData = null }) {
               onClick={handleBack}
               className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl flex items-center justify-center gap-2"
             >
-              <ChevronLeft className="w-5 h-5" /> Back
+              <ChevronLeft className="w-5 h-5" /> {t('back')}
             </button>
           )}
           
@@ -274,14 +274,14 @@ export default function CreditStepper({ onClose, initialData = null }) {
                onClick={handleNext}
                className="flex-[2] py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2"
              >
-               Next Step <ChevronRight className="w-5 h-5" />
+               {t('next_step')} <ChevronRight className="w-5 h-5" />
              </button>
           ) : (
              <button 
                onClick={handleFinish}
                className="flex-[2] py-4 bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
              >
-               <Check className="w-5 h-5" /> Save {initialData ? 'Changes' : 'Debt'}
+               <Check className="w-5 h-5" /> {initialData ? t('save_changes') : t('save_debt')}
              </button>
           )}
         </div>

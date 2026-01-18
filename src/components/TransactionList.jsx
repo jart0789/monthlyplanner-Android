@@ -58,7 +58,7 @@ export default function TransactionList({ type = 'expense' }) {
   };
 
   const handleDelete = (id) => {
-    if (confirm('Are you sure you want to delete this?')) {
+    if (confirm(t('confirm_delete'))) {
       deleteTransaction(id);
       setSelectedItem(null);
     }
@@ -76,10 +76,10 @@ export default function TransactionList({ type = 'expense' }) {
           <ChevronLeft className="w-5 h-5 text-slate-500" />
         </button>
         <h2 className="font-bold text-slate-700 dark:text-white text-lg">
-          {format(currentDate, 'MMMM yyyy')}
+      {t('month_' + format(currentDate, 'MMMM').toLowerCase())} {format(currentDate, 'yyyy')}
         </h2>
         <button 
-          onClick={() => setCurrentDate(prev => addMonths(prev, 1))} 
+         onClick={() => setCurrentDate(prev => addMonths(prev, 1))} 
           className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all"
         >
           <ChevronRight className="w-5 h-5 text-slate-500" />
@@ -92,8 +92,8 @@ export default function TransactionList({ type = 'expense' }) {
       )}>
         <p className="text-blue-100 text-xs font-bold uppercase tracking-wider mb-1">
           {selectedCategory === 'All' 
-            ? `Total ${type === 'income' ? 'Income' : 'Expenses'}` 
-            : `${selectedCategory} Total`}
+            ? (type === 'income' ? t('total_income') : t('total_expenses')) 
+            : `${selectedCategory} ${t('total')}`}
         </p>
         <h1 className="text-4xl font-black tracking-tight">{formatCurrency(totalAmount)}</h1>
       </div>
@@ -109,7 +109,7 @@ export default function TransactionList({ type = 'expense' }) {
               : "bg-white dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700"
           )}
         >
-          All
+          {t('all')}
         </button>
 
         {activeCategories.map(cat => (
@@ -137,7 +137,7 @@ export default function TransactionList({ type = 'expense' }) {
         {filteredTransactions.length === 0 ? (
           <div className="text-center py-10 text-slate-400">
             <Filter className="w-12 h-12 mx-auto mb-2 opacity-20" />
-            <p className="text-sm font-bold opacity-50">No transactions found</p>
+            <p className="text-sm font-bold opacity-50">{t('no_transactions_found')}</p>
           </div>
         ) : (
           filteredTransactions.map(t => {

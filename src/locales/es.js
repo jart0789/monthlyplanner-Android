@@ -1,7 +1,8 @@
+// src/locales/es.js
 export const es = {
   translation: {
     // --- GENERAL & NAVIGATION ---
-    dashboard: "Tablero",
+    dashboard: "Panel",
     income: "Ingresos",
     expenses: "Gastos",
     credits: "Créditos",
@@ -17,6 +18,14 @@ export const es = {
     theme: "Tema",
     language: "Idioma",
     currency: "Moneda",
+    step: "Paso",
+    next: "Siguiente",
+    next_step: "Siguiente Paso",
+    finish: "Finalizar",
+    total: "Total",
+    all: "Todo",
+    done: "Listo",
+    is: "tiene un",
 
     // --- DASHBOARD ---
     projected_free: "% Libre Proyectado",
@@ -28,13 +37,23 @@ export const es = {
     ask_ai: "Preguntar a IA",
     all_good: "¡Todo Bien!",
     finance_stable: "Tus finanzas se ven estables. No hay acciones urgentes.",
+    deficit_alert: "Alerta de Deficit",
+    overspending: "Estás proyectado a gastar de más por",
+    this_month: "este mes.",
+    savings_goal: "Estás ahorrando",
+    try_aim_20: "Intenta apuntar a 20%.",
+    great_job: "¡Buen Trabajo!",
+    on_track_save: "Estás en camino de ahorrar",
+    of_income: "de tu ingreso.",
+    high_util: "Utilización Alta",
+    pay_down_improve: "Paga para mejorar tu puntaje.",
     
     // --- CREDITS / DEBT ---
     total_debt: "Deuda Total",
     monthly_min: "Mínimo Mensual",
     monthly_debt: "Deuda Mensual", 
     current_balance: "Saldo Actual",
-    utilization: "Utilización",
+    utilization: "de utilización",
     apr: "APR (Interés)",
     min_payment: "Pago Mínimo",
     next_due: "Próximo Vencimiento",
@@ -56,6 +75,8 @@ export const es = {
     amount: "Cantidad",
     category: "Categoría",
     start_date: "Fecha Inicio",
+    total_income: "Ingresos Totales",
+    total_expenses: "Gastos Totales",
     date: "Fecha",
     notes: "Notas",
     add_note: "Añadir nota...",
@@ -85,16 +106,28 @@ export const es = {
     connect_ai_subtitle: "Gratis, privado y seguro.",
     how_to_get_key: "Cómo obtener tu clave (Toma 30 segundos):",
     step_1: "Toca el botón abajo para abrir la página segura de Google.",
-    step_2: "Toca 'Get API key', luego selecciona 'Create API key in new project'.",
+    step_2_1: "Click",
+    step_2_2: "Obten una API key,",
+    step_2_3: "luego Selecciona",
+    step_2_4: "Crear clave API en un nuevo proyecto",
     step_3: "Copia el código largo que empieza con 'AIza' y pégalo aquí.",
     tap_to_get_key: "Toca aquí para obtener tu Clave",
     opens_google: "Abre Google AI Studio",
     paste_key_here: "Pega la Clave Aquí",
     connect_my_assistant: "Conectar Mi Asistente",
-    do_later: "Haré esto luego",
+    Connecting: "Connectando...",
+    do_later: "Hacer esto luego",
     connected_success: "¡Conectado!",
     got_it: "Entendido",
-    
+    note: "Nota",
+    free_tier: "Estás usando el Nivel Gratis de Google Gemini.",
+    limit: "Límite: ",
+    limit_amount: "15 solicitudes por minuto",
+    personal_use: "Esto usualmente es suficiente para uso personal.",
+    rate_limit: "Si excedes este límite, se activará un error de límite de uso.",
+    closed_in_seconds: "Cerrando en unos segundos...",
+    got_it_button: "Entendido",
+
     // --- NOTIFICATIONS & TOASTS ---
     friendly_reminder: "Recordatorio Amistoso",
     time_to_pay: "Hora de pagar",
@@ -121,6 +154,7 @@ export const es = {
     connect_key_msg: "Conecta tu Clave Google Gemini para activar el Asesor IA.",
     go_to_chat: "Ve a Tablero > Chat para configurar.",
     confirm_disconnect: "¿Desconectar tu Clave API de Google? Tendrás que ingresarla de nuevo para usar el Asesor IA.",
+    eg: "ej. Comida",
     
     // --- CATEGORIES TAB ---
     edit_category: "Editar Categoría",
@@ -136,6 +170,51 @@ export const es = {
     expense_cats: "Categorías de Gastos",
     reminders_on: "Recordatorios On",
     delete_cat_confirm: "¿Eliminar esta categoría?",
-    cat_name_req: "El nombre de la categoría es obligatorio"
+    cat_name_req: "El nombre de la categoría es obligatorio",
+
+
+    // --- MONTHS (Full) ---
+    month_january: "Enero",
+    month_february: "Febrero",
+    month_march: "Marzo",
+    month_april: "Abril",
+    month_may: "Mayo",
+    month_june: "Junio",
+    month_july: "Julio",
+    month_august: "Agosto",
+    month_september: "Septiembre",
+    month_october: "Octubre",
+    month_november: "Noviembre",
+    month_december: "Diciembre",
+
+    // --- MONTHS (Short) ---
+    month_jan: "Ene",
+    month_feb: "Feb",
+    month_mar: "Mar",
+    month_apr: "Abr",
+    month_may_short: "May",
+    month_jun: "Jun",
+    month_jul: "Jul",
+    month_aug: "Ago",
+    month_sep: "Sep",
+    month_oct: "Oct",
+    month_nov: "Nov",
+    month_dec: "Dic",
+
+    // --- DAYS ---
+    day_monday: "Lunes",
+    day_tuesday: "Martes",
+    day_wednesday: "Miércoles",
+    day_thursday: "Jueves",
+    day_friday: "Viernes",
+    day_saturday: "Sábado",
+    day_sunday: "Domingo",
+
+    // --- NOTIFICATIONS & TOASTS ---
+    friendly_reminder: "Recordatorio Amistoso",
+    time_to_pay: "Hora de pagar",
+    payment_error: "Error de Pago",
+    please_enter_amount: "Por favor ingresa una cantidad.",
+    payment_exceeds_balance: "El pago no puede exceder el saldo actual."
   }
 };

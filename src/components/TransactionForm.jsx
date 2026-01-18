@@ -5,7 +5,7 @@ import { cn } from '../lib/utils';
 import * as LucideIcons from 'lucide-react';
 
 export default function TransactionForm({ type, existingData, onClose }) {
-  const { addTransaction, updateTransaction, categories } = useFinance();
+  const { addTransaction, updateTransaction, categories, t } = useFinance();
 
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -35,7 +35,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
 
   const handleSave = () => {
     if (!amount || !categoryId) {
-      alert("Please enter an amount and select a category");
+      alert(t('enter_amount_category_error'));
       return;
     }
 
@@ -68,10 +68,10 @@ export default function TransactionForm({ type, existingData, onClose }) {
       {/* Header */}
       <div className="px-4 py-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0 safe-top">
         <button onClick={onClose} className="flex items-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white">
-          <ChevronLeft className="w-5 h-5 mr-1" /> Back
+          <ChevronLeft className="w-5 h-5 mr-1" /> {t('back')}
         </button>
         <h2 className="text-lg font-bold text-slate-900 dark:text-white capitalize">
-          {existingData ? 'Edit' : 'New'} {type === 'income' ? 'Income' : 'Expense'}
+          {existingData ? t('edit') : t('new')} {type === 'income' ? t('income') : t('expense')}
         </h2>
         <div className="w-16" />
       </div>
@@ -80,7 +80,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
       <div className="flex-1 overflow-y-auto p-5 pb-32">
         {/* Amount */}
         <div className="mb-6">
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Amount</label>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-2">{t('amount')}</label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-slate-400">$</span>
             <input
@@ -96,7 +96,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
 
         {/* Categories */}
         <div className="mb-6">
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Category</label>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-2">{t('category')}</label>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
             {availableCategories.map(cat => {
               const IconTag = LucideIcons[cat.icon] || LucideIcons.Tag;
@@ -127,7 +127,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
 
         {/* Date */}
         <div className="mb-6">
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Start Date</label>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-2">{t('start_date')}</label>
           <div className="relative">
             <input 
               type="date" 
@@ -144,7 +144,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
             <div className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><Repeat className="w-5 h-5"/></div>
-                  <span className="font-bold text-slate-700 dark:text-white">Recurring</span>
+                  <span className="font-bold text-slate-700 dark:text-white">{t('recurring')}</span>
                 </div>
                 <div 
                   onClick={() => setIsRecurring(!isRecurring)}
@@ -158,7 +158,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
             {isRecurring && (
                 <div className="px-4 pb-4 animate-in slide-in-from-top-2">
                     <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">How Often?</label>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">{t('how_often')}</label>
                         <div className="grid grid-cols-3 gap-2">
                             {['weekly', 'biweekly', 'monthly'].map(opt => (
                                 <button
@@ -171,14 +171,14 @@ export default function TransactionForm({ type, existingData, onClose }) {
                                             : "bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600"
                                     )}
                                 >
-                                    {opt === 'biweekly' ? 'Bi-Weekly' : opt}
+                                    {opt === 'biweekly' ? t('biweekly') : t(opt)}
                                 </button>
                             ))}
                         </div>
                         <p className="text-[10px] text-slate-400 mt-2 text-center">
-                            {frequency === 'weekly' && "Multiplies amount by 4 for monthly stats."}
-                            {frequency === 'biweekly' && "Multiplies amount by 2 for monthly stats."}
-                            {frequency === 'monthly' && "Counts once per month."}
+                            {frequency === 'weekly' && t('freq_weekly_hint')}
+                            {frequency === 'biweekly' && t('freq_biweekly_hint')}
+                            {frequency === 'monthly' && t('freq_monthly_hint')}
                         </p>
                     </div>
                 </div>
@@ -187,12 +187,12 @@ export default function TransactionForm({ type, existingData, onClose }) {
 
         {/* Notes */}
         <div className="mb-6">
-          <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Notes</label>
+          <label className="block text-xs font-bold text-slate-400 uppercase mb-2">{t('notes')}</label>
           <div className="relative">
             <textarea 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add a note..."
+              placeholder={t('add_note')}
               rows="3"
               className="w-full p-4 pl-10 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 font-medium text-slate-700 dark:text-white outline-none resize-none shadow-xl"
             />
@@ -202,7 +202,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
       </div>
 
       {/* Footer Button */}
-      <div className="absolute bottom-10 left-0 right-0 p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 safe-bottom">
+      <div className="absolute bottom-0 left-0 right-0 p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 safe-bottom">
         <button 
           onClick={handleSave}
           className={cn(
@@ -211,7 +211,7 @@ export default function TransactionForm({ type, existingData, onClose }) {
           )}
         >
           <Save className="w-5 h-5" />
-          Save
+          {t('save')}
         </button>
       </div>
 

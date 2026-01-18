@@ -29,7 +29,7 @@ export default function Layout() {
     <button
       onClick={() => setActiveTab(id)}
       className={cn(
-        "flex flex-col items-center justify-center w-full h-full transition-all duration-300 active:scale-95",
+        "flex flex-col items-center justify-center w-full h-full transition-all duration-300 active:scale-90",
         activeTab === id 
           ? "text-blue-600 dark:text-blue-400 -translate-y-1" 
           : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"

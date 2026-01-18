@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, DollarSign, CreditCard } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function PaymentModal({ isOpen, onClose, onConfirm, credit }) {
+  const { t } = useTranslation();
   const [amount, setAmount] = useState('');
 
   // Reset/Preset amount when the modal opens
@@ -16,10 +18,10 @@ export default function PaymentModal({ isOpen, onClose, onConfirm, credit }) {
   if (!isOpen || !credit) return null;
 
   const isAutopay = credit.autopay;
-  const title = isAutopay ? `Extra Payment` : `Make Payment`;
+  const title = isAutopay ? t('extra_payment') : t('make_payment');
   const description = isAutopay 
-    ? `This account is on Autopay. This amount will be recorded as an EXTRA payment towards ${credit.name}.`
-    : `Enter the payment amount for ${credit.name}.`;
+    ? t('autopay_payment_desc', { name: credit.name })
+    : t('manual_payment_desc', { name: credit.name });
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -50,7 +52,7 @@ export default function PaymentModal({ isOpen, onClose, onConfirm, credit }) {
           </p>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Amount</label>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('amount')}</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <DollarSign className="h-5 w-5 text-slate-400" />
@@ -74,14 +76,14 @@ export default function PaymentModal({ isOpen, onClose, onConfirm, credit }) {
               onClick={onClose}
               className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
             >
-              Cancel
+              {t('cancel')}
             </button>
             <button
               type="submit"
               disabled={!amount}
               className="flex-1 px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Pay Now
+              {t('pay_now')}
             </button>
           </div>
         </form>
