@@ -14,7 +14,7 @@ const COLORS = ['#0cb606ff', '#F43F5E', '#3B82F6', '#F59E0B', '#8B5CF6', '#6366f
 
 // Added onNavigate prop to handle card clicks
 export default function Dashboard({ onNavigate }) {
-  const { transactions, credits, formatCurrency, t, dailyReminders, dismissReminder, categories } = useFinance(); // Destructured categories
+  const { transactions, credits, formatCurrency, t, dailyReminders, dismissReminder, categories } = useFinance(); 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [dismissedAdvice, setDismissedAdvice] = useState([]);
     
@@ -200,7 +200,7 @@ export default function Dashboard({ onNavigate }) {
     <div className="space-y-6 pb-32 animate-in fade-in relative">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard')}</h1>
-        <div className={cn("px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300")}>
+        <div className={cn("px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" , "tour-free-cash")}>
           {freeCashPercent}{t('projected_free')}
         </div>
       </div>
@@ -238,7 +238,7 @@ export default function Dashboard({ onNavigate }) {
       )}
 
       {/* CLICKABLE SUMMARY CARDS */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3 tour-summary-cards">
         <div 
           onClick={() => onNavigate && onNavigate('income')}
           className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 text-center shadow-xl cursor-pointer active:scale-95 transition-transform hover:bg-slate-50 dark:hover:bg-slate-700/50"
@@ -268,7 +268,7 @@ export default function Dashboard({ onNavigate }) {
       </div>
 
       {/* PIE CHART WITH 3D EFFECT */}
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 ">
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 tour-budget-chart">
         <div className="text-center mb-6">
           <p className="text-slate-500 text-sm font-bold uppercase tracking-wider">{t('projected_monthly_budget')}</p>
           <p className="text-slate-400 text-xs font-medium mt-1">{t('forecast_formula')}</p>
@@ -411,7 +411,7 @@ export default function Dashboard({ onNavigate }) {
         )}
       </div>
 
-      <button onClick={() => setIsChatOpen(true)} className="fixed bottom-32 right-4 p-4 bg-indigo-600 text-white rounded-full shadow-2xl hover:bg-indigo-700 transition-transform active:scale-90 z-[60] flex items-center gap-2 font-bold">
+      <button onClick={() => setIsChatOpen(true)} className="fixed bottom-32 right-4 p-4 bg-indigo-600 text-white rounded-full shadow-2xl hover:bg-indigo-700 transition-transform active:scale-90 z-[60] flex items-center gap-2 font-bold tour-ai-button">
         <MessageSquare className="w-6 h-6" />
         <span className="hidden sm:inline">{t('ask_ai')}</span>
       </button>

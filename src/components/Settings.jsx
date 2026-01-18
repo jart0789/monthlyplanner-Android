@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
 import { LANGUAGES } from '../utils/i18n'; 
-import { Moon, Sun, Globe, DollarSign, Plus, Trash2, Edit2, Check, Bell, CreditCard, RefreshCw, Brain } from 'lucide-react';
+import { Moon, Sun, Globe, DollarSign, Plus, Trash2, Edit2, Check, Bell, CreditCard, RefreshCw, Brain, HelpCircle } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Preferences } from '@capacitor/preferences';
+import { useTutorial } from '../contexts/TutorialContext';
 
 const ICON_OPTIONS = [
   'Tag', 'Home', 'Coffee', 'Car', 'Zap', 'Smartphone', 'Briefcase', 'ShoppingBag', 
@@ -21,7 +22,8 @@ const COLOR_OPTIONS = [
   '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#6366F1', '#14B8A6', '#F97316', '#84CC16', '#06B6D4', '#0EA5E9', '#D946EF', '#F43F5E', '#EAB308', '#78716C', '#475569', '#000000',
 ];
 
-export default function Settings() {
+export default function Settings({ onNavigate }) {
+  const { startTutorial } = useTutorial(); 
   const { settings, setTheme, setLanguage, setCurrency, updateNotificationSetting, categories, addCategory, updateCategory, deleteCategory, t } = useFinance();
   const [activeTab, setActiveTab] = useState('general'); 
   
@@ -103,6 +105,28 @@ export default function Settings() {
           <h4 className="text-xs font-bold text-slate-400 uppercase mt-4 ml-1">{t('notifications')}</h4>
           <div className="space-y-3">
              
+{/* ADD THIS NEW BLOCK FOR TUTORIAL */}
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+             <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
+                   <HelpCircle className="w-5 h-5"/>
+                </div>
+                <div className="flex flex-col">
+                   <span className="font-bold text-slate-700 dark:text-white">{t('help_support') || 'Help & Support'}</span>
+                   <span className="text-xs text-slate-400">{t('help_desc') || 'Replay the app tutorial'}</span>
+                </div>
+             </div>
+             <button 
+                onClick={() => {
+                   if (onNavigate) onNavigate('dashboard'); // Switch to Dashboard first
+                   setTimeout(() => startTutorial(), 100);  // Start tutorial after switch
+                }}
+                className="w-full py-2 bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400 rounded-lg text-xs font-bold border border-purple-100 dark:border-purple-900"
+             >
+                {t('show_tutorial') || 'Show Tutorial'}
+             </button>
+          </div>
+
              {/* Bill Reminders */}
              <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center">
                 <div className="flex items-center gap-3">
