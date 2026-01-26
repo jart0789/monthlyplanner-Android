@@ -1,29 +1,43 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, CreditCard, Calendar, AlertCircle, Lightbulb, MessageSquare, Bell, Check, X, Tag } from 'lucide-react';
-import * as LucideIcons from 'lucide-react'; // Added to map icon strings to components
+import * as LucideIcons from 'lucide-react'; 
 import { useFinance } from '../contexts/FinanceContext';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { format, parseISO, isSameMonth, startOfDay, subDays } from 'date-fns';
-
+import { TourManager } from '../lib/TourManager';
 import { cn } from '../lib/utils';
 // IMPORTS
 import AdvisorChat from './AdvisorChat';
 import { analyzeFinances } from '../utils/smartAdvisor';
 import { LANGUAGES } from '../utils/i18n'; 
+
 const COLORS = ['#0cb606ff', '#F43F5E', '#3B82F6', '#F59E0B', '#8B5CF6', '#6366f1'];
 
 // Added onNavigate prop to handle card clicks
 export default function Dashboard({ onNavigate }) {
+ 
   const { transactions, credits, formatCurrency, t, dailyReminders, dismissReminder, categories } = useFinance(); 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [dismissedAdvice, setDismissedAdvice] = useState([]);
-    
+
   const today = new Date();
+
+
+// --- TUTORIAL TRIGGER ---
+useEffect(() => {
+    // Check if we should run the dashboard tour
+    TourManager.run('dashboard', onNavigate, t);
+    
+    // Cleanup on unmount
+    return () => TourManager.cleanup();
+  }, []);
 
   // --- SWIPE LOGIC ---
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const minSwipeDistance = 50;
+
+
 
   const onTouchStart = (e) => {
     setTouchEnd(null);
@@ -196,11 +210,12 @@ export default function Dashboard({ onNavigate }) {
 
   const isAdvisorEmpty = visibleAdvice.length === 0;
 
+
   return (
-    <div className="space-y-6 pb-32 animate-in fade-in relative">
+    <div className="space-y-6 pb-32 animate-in fade-in relative .tour-main">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('dashboard')}</h1>
-        <div className={cn("px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" , "tour-free-cash")}>
+        <div className={cn("px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" )}>
           {freeCashPercent}{t('projected_free')}
         </div>
       </div>
@@ -304,7 +319,7 @@ export default function Dashboard({ onNavigate }) {
               <Pie 
                 data={displayData} 
                 innerRadius={55} // Slightly increased for cleaner donut look
-                outerRadius={100} 
+                outerRadius={90} 
                 paddingAngle={4} // Adds gaps for "pieces" effect
                 dataKey="value"
                 stroke="none" // No stroke to let the shadow work better
@@ -316,12 +331,12 @@ export default function Dashboard({ onNavigate }) {
                     // Use the 3D Gradient ID
                     fill={hasChartData ? `url(#grad-${index % COLORS.length})` : 'url(#grad-empty)'} 
                     stroke="rgba(255,255,255,0.1)" // Subtle border for definition
-                    strokeWidth={1}
+                    strokeWidth={5}
                   />
                 ))}
               </Pie>
               {hasChartData && <Tooltip formatter={(value) => `${formatCurrency(value)} (${(value / stats.monthlyIncome * 100).toFixed(1)}%)`} />}
-              {hasChartData && <Legend verticalAlign="bottom" height={19} bottom={5}/>}
+              {hasChartData && <Legend verticalAlign="bottom" height={59}/>}
             </PieChart>
           </ResponsiveContainer>
           
@@ -337,7 +352,7 @@ export default function Dashboard({ onNavigate }) {
       </div>
 
       {/* 4. UPCOMING BILLS */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden tour-next-bills">
         <div className="p-4 border-b border-slate-100 dark:border-slate-800">
           <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Calendar className="w-4 h-4 text-slate-400" /> {t('due_next_14')}
@@ -373,7 +388,7 @@ export default function Dashboard({ onNavigate }) {
       </div>
       
       {/* 5. AI ADVISOR */}
-      <div className="relative z-10 min-h-[140px] mb-6">
+      <div className="relative z-10 min-h-[140px] mb-6 tour-Ai-Adivses">
         {!isAdvisorEmpty ? (
            <div className="relative h-32 w-full">
              {visibleAdvice.map((advice, index) => {

@@ -18,7 +18,10 @@
     --card: #1e293b; /* slate-800 */
     --card-foreground: #f8fafc;
   }
+
 }
+
+
 
 /* FIX: Use standard CSS here instead of @apply to prevent build errors */
 body {
@@ -26,4 +29,16 @@ body {
   color: var(--foreground);
   transition-property: background-color, color, border-color;
   transition-duration: 300ms;
+}
+
+/* src/index.css */
+.driverjs-dark-theme .driver-popover {
+  background-color: #1e293b; /* Slate-800 */
+  color: #ffffff;
+}
+.driverjs-dark-theme .driver-popover-title {
+  color: #ffffff;
+}
+.driverjs-dark-theme .driver-popover-description {
+  color: #94a3b8; /* Slate-400 */
 }

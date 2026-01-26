@@ -4,7 +4,9 @@ import { CreditCard, Landmark, Plus, Trash2, X, History, Pencil, ChevronDown, Al
 import { useFinance } from '../contexts/FinanceContext';
 import { format, parseISO, isSameDay, addMonths, isAfter } from 'date-fns';
 import CreditStepper from './CreditStepper';
-import PaymentModal from './PaymentModal'; // <--- 1. Imported PaymentModal
+import PaymentModal from './PaymentModal'; 
+import { TourManager } from '../lib/TourManager';
+
 
 // --- DETAIL MODAL ---
 const CreditDetailModal = ({ credit, onClose, onDelete, formatCurrency }) => {
@@ -117,18 +119,27 @@ const CreditDetailModal = ({ credit, onClose, onDelete, formatCurrency }) => {
   );
 };
 
-export default function Credits() {
+export default function Credits({ onNavigate }) {
   const { credits, deleteCredit, updateCredit, formatCurrency, t } = useFinance();
   const [isAdding, setIsAdding] = useState(false);
   const [editingCredit, setEditingCredit] = useState(null);
   const [selectedCredit, setSelectedCredit] = useState(null);
-  
+
+  // --- NEW: FILTER STATE ---
+  const [filter, setFilter] = useState('all'); // 'all' | 'creditCard' | 'loan'
+
   // --- 2. MODAL STATE ---
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [selectedCreditForPay, setSelectedCreditForPay] = useState(null);
 
   // --- TOAST STATE ---
   const [toast, setToast] = useState(null);
+
+  // --- TUTORIAL TRIGGER ---
+  useEffect(() => {
+    TourManager.run('credits', onNavigate, t);
+    return () => TourManager.cleanup();
+  }, []);
 
   useEffect(() => {
     const handleShowToast = (e) => {
@@ -213,19 +224,25 @@ export default function Credits() {
     checkAutopay();
   }, [credits]);
 
-  // --- FIXED: Monthly Min only for credits with balance > 0 ---
+  // --- NEW: FILTERED LIST CALCULATION ---
+  const filteredCredits = useMemo(() => {
+    if (filter === 'all') return credits;
+    return credits.filter(c => c.type === filter);
+  }, [credits, filter]);
+
+  // --- FIXED: Stats calculation now uses 'filteredCredits' ---
   const stats = useMemo(() => {
-    const totalDebt = credits.reduce((acc, c) => acc + (parseFloat(c.currentBalance || 0)), 0);
+    const totalDebt = filteredCredits.reduce((acc, c) => acc + (parseFloat(c.currentBalance || 0)), 0);
 
     // Only include minPayment if currentBalance > 0
-    const monthlyCommitment = credits.reduce((acc, c) => {
+    const monthlyCommitment = filteredCredits.reduce((acc, c) => {
       const balance = parseFloat(c.currentBalance || 0);
       const minPayment = parseFloat(c.minPayment || 0);
       return balance > 0 ? acc + minPayment : acc;
     }, 0);
 
     return { totalDebt, monthlyCommitment };
-  }, [credits]);
+  }, [filteredCredits]);
 
   // --- 3. UPDATED HANDLER TO OPEN MODAL ---
   const handlePayClick = (credit) => {
@@ -250,26 +267,48 @@ export default function Credits() {
       {/* Header */}
       <div className="flex justify-between items-center sticky top-0 bg-slate-50 dark:bg-slate-900 py-4 z-10">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t('credits')}</h1>
-        <button onClick={() => { setEditingCredit(null); setIsAdding(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg font-bold hover:bg-blue-700 transition-colors">
-          <Plus className="w-4 h-4" /> Add
+        <button onClick={() => { setEditingCredit(null); setIsAdding(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg font-bold hover:bg-blue-700 transition-colors tour-add-credit">
+          <Plus className="w-4 h-4" /> {t('add')}
+        </button>
+      </div>
+
+      {/* --- NEW: FILTER TOGGLE --- */}
+      <div className="flex p-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 tour-filter-credit">
+        <button 
+            onClick={() => setFilter('all')} 
+            className={cn("flex-1 py-2 rounded-lg text-xs font-bold transition-all", filter === 'all' ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}
+        >
+            {t('filter_all')}
+        </button>
+        <button 
+            onClick={() => setFilter('creditCard')} 
+            className={cn("flex-1 py-2 rounded-lg text-xs font-bold transition-all", filter === 'creditCard' ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}
+        >
+            {t('filter_cards')}
+        </button>
+        <button 
+            onClick={() => setFilter('loan')} 
+            className={cn("flex-1 py-2 rounded-lg text-xs font-bold transition-all", filter === 'loan' ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}
+        >
+            {t('filter_loans')}
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl">
+        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl tour-total-credit">
           <p className="text-xs font-bold uppercase text-slate-500 mb-1">{t('total_debt')}</p>
           <h2 className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(stats.totalDebt)}</h2>
         </div>
-        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl">
+        <div className="p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl tour-monthlymin-credit">
           <p className="text-xs font-bold uppercase text-slate-500 mb-1">{t('monthly_min')}</p>
           <h2 className="text-xl font-black text-slate-900 dark:text-white">{formatCurrency(stats.monthlyCommitment)}</h2>
         </div>
       </div>
 
-      {/* Card List */}
+      {/* Card List (Uses filteredCredits) */}
       <div className="space-y-4">
-        {credits.map(c => {
+        {filteredCredits.map(c => {
            const maxAmount = c.limit ? parseFloat(c.limit) : parseFloat(c.totalAmount || 1);
            const current = parseFloat(c.currentBalance || 0);
            const progressPercent = Math.min((current / maxAmount) * 100, 100).toFixed(0);
@@ -277,7 +316,7 @@ export default function Credits() {
            const displayname = c.name;
            
            return (
-            <div key={c.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-lg border border-slate-300 dark:border-slate-700 relative overflow-hidden">
+            <div key={c.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-lg border border-slate-300 dark:border-slate-700 relative overflow-hidden tour-credit_items">
               {c.autopay && (
                   <div className="absolute top-0 right-0 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-l border-b border-emerald-500/20">
                       {t('autopay_active')}

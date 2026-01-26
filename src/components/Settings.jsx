@@ -5,7 +5,7 @@ import { Moon, Sun, Globe, DollarSign, Plus, Trash2, Edit2, Check, Bell, CreditC
 import * as LucideIcons from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Preferences } from '@capacitor/preferences';
-import { useTutorial } from '../contexts/TutorialContext';
+import { TourManager } from '../lib/TourManager';
 
 const ICON_OPTIONS = [
   'Tag', 'Home', 'Coffee', 'Car', 'Zap', 'Smartphone', 'Briefcase', 'ShoppingBag', 
@@ -23,12 +23,18 @@ const COLOR_OPTIONS = [
 ];
 
 export default function Settings({ onNavigate }) {
-  const { startTutorial } = useTutorial(); 
   const { settings, setTheme, setLanguage, setCurrency, updateNotificationSetting, categories, addCategory, updateCategory, deleteCategory, t } = useFinance();
   const [activeTab, setActiveTab] = useState('general'); 
-  
   const [hasApiKey, setHasApiKey] = useState(false);
 
+// --- 3. TUTORIAL TRIGGER ---
+useEffect(() => {
+    TourManager.run('settings', onNavigate, t, { setTab: setActiveTab });
+    return () => TourManager.cleanup();
+  }, []);
+
+
+  
   useEffect(() => {
      checkKeyStatus();
   }, []);
@@ -83,7 +89,7 @@ export default function Settings({ onNavigate }) {
         <button onClick={() => setActiveTab('general')} className={cn("flex-1 py-2 rounded-lg text-sm font-bold transition-all", activeTab === 'general' ? "bg-white dark:bg-slate-700 shadow-xl text-slate-900 dark:text-white" : "text-slate-500")}>
             {t('general_tab')}
         </button>
-        <button onClick={() => setActiveTab('categories')} className={cn("flex-1 py-2 rounded-lg text-sm font-bold transition-all", activeTab === 'categories' ? "bg-white dark:bg-slate-700 shadow-xl text-slate-900 dark:text-white" : "text-slate-500")}>
+        <button onClick={() => setActiveTab('categories')} className={cn("flex-1 py-2 rounded-lg text-sm font-bold transition-all tour-categories-tab", activeTab === 'categories' ? "bg-white dark:bg-slate-700 shadow-xl text-slate-900 dark:text-white" : "text-slate-500")}>
             {t('categories_tab')}
         </button>
       </div>
@@ -92,7 +98,7 @@ export default function Settings({ onNavigate }) {
         <div className="space-y-4">
           
           {/* Dark Mode */}
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center tour-dark-mode">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg">{settings.theme === 'dark' ? <Moon className="w-5 h-5 text-indigo-500"/> : <Sun className="w-5 h-5 text-amber-500"/>}</div>
               <span className="font-bold text-slate-700 dark:text-white">{t('dark_mode')}</span>
@@ -103,9 +109,9 @@ export default function Settings({ onNavigate }) {
           </div>
 
           <h4 className="text-xs font-bold text-slate-400 uppercase mt-4 ml-1">{t('notifications')}</h4>
-          <div className="space-y-3">
-             
-{/* ADD THIS NEW BLOCK FOR TUTORIAL */}
+          <div className="space-y-3 tour-notifications">
+          
+       
           <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
              <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg">
@@ -116,19 +122,20 @@ export default function Settings({ onNavigate }) {
                    <span className="text-xs text-slate-400">{t('help_desc') || 'Replay the app tutorial'}</span>
                 </div>
              </div>
-             <button 
-                onClick={() => {
-                   if (onNavigate) onNavigate('dashboard'); // Switch to Dashboard first
-                   setTimeout(() => startTutorial(), 100);  // Start tutorial after switch
-                }}
-                className="w-full py-2 bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400 rounded-lg text-xs font-bold border border-purple-100 dark:border-purple-900"
-             >
-                {t('show_tutorial') || 'Show Tutorial'}
-             </button>
+                <button 
+                    onClick={() => {
+                      localStorage.setItem('tutorial_step', 'dashboard');
+                      localStorage.removeItem('fintracker_tutorial_completed'); 
+                      if (onNavigate) onNavigate('dashboard');
+                    }}
+                    className="w-full py-2 ..."
+                  >
+                    {t('show_tutorial') || 'Show Tutorial'}
+              </button>
           </div>
 
              {/* Bill Reminders */}
-             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center tour-notifications_billremind">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-indigo-100 dark:bg-slate-700 text-indigo-600 rounded-lg"><Bell className="w-5 h-5"/></div>
                   <div className="flex flex-col">
@@ -143,9 +150,9 @@ export default function Settings({ onNavigate }) {
 
              {/* Loan Reminders */}
              <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-100 dark:bg-slate-700 text-blue-600 rounded-lg"><CreditCard className="w-5 h-5"/></div>
+                <div className="flex justify-between items-center mb-3 tour-notifications_loanremind">
+                    <div className="flex items-center gap-3 ">
+                      <div className="p-2 bg-blue-100 dark:bg-slate-700 text-blue-600 rounded-lg "><CreditCard className="w-5 h-5"/></div>
                       <div className="flex flex-col">
                         <span className="font-bold text-slate-700 dark:text-white">{t('loan_reminders_title')}</span>
                         <span className="text-xs text-slate-400">{t('loan_reminders_desc')}</span>
@@ -155,17 +162,17 @@ export default function Settings({ onNavigate }) {
                       <div className={cn("w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-xl", getNotifState('loan_dates') ? "left-6" : "left-1")} />
                     </button>
                 </div>
-                <div className={cn("flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700 transition-opacity", getNotifState('loan_dates') ? "opacity-100" : "opacity-40 pointer-events-none")}>
+                <div className={cn("flex items-center justify-between pt-3 mb-3 border-t border-slate-100 dark:border-slate-700 transition-opacity tour-notifications_loanreminddays", getNotifState('loan_dates') ? "opacity-100" : "opacity-40 pointer-events-none")}>
                     <span className="text-xs font-bold text-slate-500">{t('days_before_due')}</span>
                     <div className="flex items-center gap-2">
                         <input type="number" min="0" max="30" value={getNotifValue('loan_notify_days')} onChange={(e) => updateNotificationSetting('loan_notify_days', parseInt(e.target.value))} className="w-16 p-2 text-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-slate-900 dark:text-white outline-none focus:border-blue-500" />
                         <span className="text-xs text-slate-400">{t('days')}</span>
                     </div>
                 </div>
-             </div>
+        
 
              {/* Autopay Alerts */}
-             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+             <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center tour-notifications_autopay">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-100 dark:bg-slate-700 text-emerald-600 rounded-lg"><RefreshCw className="w-5 h-5"/></div>
                   <div className="flex flex-col">
@@ -179,9 +186,10 @@ export default function Settings({ onNavigate }) {
              </div>
 
           </div>
+          </div>
           
           {/* Currency */}
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center tour-general-currency">
              <div className="flex items-center gap-3">
                 <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"><DollarSign className="w-5 h-5 text-emerald-500"/></div>
                 <span className="font-bold text-slate-700 dark:text-white">{t('currency')}</span>
@@ -202,7 +210,7 @@ export default function Settings({ onNavigate }) {
           </div>
 
           {/* Language Selector */}
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center">
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 flex justify-between items-center tour-general-language">
              <div className="flex items-center gap-3">
                 <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg"><Globe className="w-5 h-5 text-blue-500"/></div>
                 <span className="font-bold text-slate-700 dark:text-white">{t('language')}</span>
@@ -215,7 +223,7 @@ export default function Settings({ onNavigate }) {
           </div>
        
           {/* AI Configuration */}
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+          <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 tour-general-AI">
              <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg"><Brain className="w-5 h-5"/></div>
                 <div className="flex flex-col">
@@ -242,7 +250,7 @@ export default function Settings({ onNavigate }) {
       )}
 
       {activeTab === 'categories' && (
-        <div className="space-y-6">
+        <div className="space-y-6" >
           <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl">
              <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                {isEditing ? <Edit2 className="w-4 h-4"/> : <Plus className="w-4 h-4"/>}
@@ -250,11 +258,11 @@ export default function Settings({ onNavigate }) {
              </h3>
              <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                   <div>
+                   <div className="tour-categories-name">
                       <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">{t('cat_name')}</label>
                       <input value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} placeholder={t('eg')} className="w-full p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none focus:border-blue-500" />
                    </div>
-                   <div>
+                   <div className="tour-categories-type">
                       <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">{t('cat_type')}</label>
                       <div className="flex p-1 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
                          <button onClick={() => setCatForm({...catForm, type: 'expense'})} className={cn("flex-1 py-2 rounded-lg text-xs font-bold transition-all", catForm.type === 'expense' ? "bg-white dark:bg-slate-700 shadow-xl text-rose-500" : "text-slate-400")}>{t('expenses')}</button>
@@ -263,7 +271,7 @@ export default function Settings({ onNavigate }) {
                    </div>
                 </div>
                 {catForm.type === 'expense' && (
-                  <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl flex justify-between items-center border border-slate-200 dark:border-slate-700">
+                  <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl flex justify-between items-center border border-slate-200 dark:border-slate-700 tour-categories-billremind">
                     <div className="flex items-center gap-3">
                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg"><Bell className="w-4 h-4"/></div>
                        <div className="flex flex-col">
@@ -276,7 +284,7 @@ export default function Settings({ onNavigate }) {
                     </button>
                   </div>
                 )}
-                <div>
+                <div className="tour-categories-color">
                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">{t('cat_color')}</label>
                    <div className="flex flex-wrap gap-2">
                       {COLOR_OPTIONS.map(c => (
@@ -286,9 +294,9 @@ export default function Settings({ onNavigate }) {
                       ))}
                    </div>
                 </div>
-                <div>
+                <div className="tour-categories-icon">
                    <label className="text-xs font-bold text-slate-400 uppercase mb-2 block">{t('cat_icon')}</label>
-                   <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                   <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar ">
                       {ICON_OPTIONS.map(iconName => {
                          const Icon = LucideIcons[iconName] || LucideIcons.Tag;
                          return (
@@ -299,7 +307,7 @@ export default function Settings({ onNavigate }) {
                       })}
                    </div>
                 </div>
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-3 pt-2 tour-categories-save">
                    {isEditing && (
                      <button onClick={resetForm} className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 font-bold rounded-xl">{t('cancel')}</button>
                    )}
@@ -310,9 +318,9 @@ export default function Settings({ onNavigate }) {
                 </div>
              </div>
           </div>
-          <div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-1">{t('income_cats')}</h4>
-            <div className="space-y-2">
+          <div className="tour-categories-income">
+            <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-1 ">{t('income_cats')}</h4>
+            <div className="space-y-2 ">
                {categories.filter(c => c.type === 'income').map(cat => (
                  <CategoryItem 
                     key={cat.id} 
@@ -324,7 +332,7 @@ export default function Settings({ onNavigate }) {
                ))}
             </div>
           </div>
-          <div>
+          <div className="tour-categories-expense">
             <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 ml-1">{t('expense_cats')}</h4>
             <div className="space-y-2">
                {categories.filter(c => c.type === 'expense').map(cat => (
