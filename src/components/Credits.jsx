@@ -13,7 +13,11 @@ const CreditDetailModal = ({ credit, onClose, onDelete, formatCurrency }) => {
   const { recordCreditPayment } = useFinance();
   const limit = parseFloat(credit.limit || credit.totalAmount || 1);
   const balance = parseFloat(credit.currentBalance || 0);
-  const progress = limit > 0 ? Math.min((balance / limit) * 100, 100) : 0;
+  
+  // LOGIC FIX: Invert progress bar (100% = Paid off, 0% = Maxed out)
+  // Utilization remains (balance/limit)
+  const utilization = limit > 0 ? Math.min((balance / limit) * 100, 100) : 0;
+  const progress = 100 - utilization; // Inverted for "Payment Progress"
   
   const [payAmount, setPayAmount] = useState('');
 
@@ -71,8 +75,8 @@ const CreditDetailModal = ({ credit, onClose, onDelete, formatCurrency }) => {
                     <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${progress}%` }}></div>
                 </div>
                 <div className="flex justify-between mt-2 text-xs text-slate-500 font-bold">
-                    <span>0%</span>
-                    <span>{progress.toFixed(0)}% Utilization</span>
+                    <span>{progress.toFixed(0)}% Paid</span>
+                    <span>{utilization.toFixed(0)}% Utilization</span>
                 </div>
              </div>
 
@@ -311,7 +315,11 @@ export default function Credits({ onNavigate }) {
         {filteredCredits.map(c => {
            const maxAmount = c.limit ? parseFloat(c.limit) : parseFloat(c.totalAmount || 1);
            const current = parseFloat(c.currentBalance || 0);
-           const progressPercent = Math.min((current / maxAmount) * 100, 100).toFixed(0);
+           
+           // BUG FIX: Invert progress (100% = paid off)
+           const utilization = Math.min((current / maxAmount) * 100, 100);
+           const progressPercent = (100 - utilization).toFixed(0);
+           
            const displayApr = c.interestRate || c.apr || 0;
            const displayname = c.name;
            
@@ -346,6 +354,7 @@ export default function Credits({ onNavigate }) {
               </div>
 
               <div className="w-full h-2 bg-slate-400 rounded-full overflow-hidden mb-6">
+                 {/* Width matches "Paid off" percentage now */}
                  <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
               </div>
 

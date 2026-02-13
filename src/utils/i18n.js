@@ -26,8 +26,6 @@ import { pl } from '../locales/pl';
   // The list for your Settings Page Dropdown
 export const LANGUAGES = [
   { code: 'en', label: 'English', currency: 'USD' },
-  { code: 'zh_tw', label: 'Traditional Chinese', currency: 'TWD' },
-  { code: 'zh_cn', label: 'Simplified Chinese', currency: 'CNY' },
   { code: 'ja', label: 'Japanese', currency: 'JPY' },
   { code: 'ko', label: 'Korean', currency: 'KRW' },
   { code: 'id', label: 'Bahasa Indonesia', currency: 'IDR' },
@@ -36,7 +34,7 @@ export const LANGUAGES = [
   { code: 'es', label: 'Español', currency: 'EUR' },
   { code: 'tr', label: 'Türkçe', currency: 'TRY' },
   { code: 'pl', label: 'Polski', currency: 'PLN' },
-  { code: 'it', label: 'Italiano', currency: 'EUR' },
+  { code: 'it', label: 'Italiano', currency: 'EUR' }, //here
   { code: 'pt', label: 'Português', currency: 'BRL' },
   { code: 'nl', label: 'Nederlands', currency: 'EUR' },
   { code: 'de', label: 'Deutsch', currency: 'EUR' },

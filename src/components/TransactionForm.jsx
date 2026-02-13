@@ -5,7 +5,7 @@ import { cn } from '../lib/utils';
 import * as LucideIcons from 'lucide-react';
 
 export default function TransactionForm({ type, existingData, onClose }) {
-  const { addTransaction, updateTransaction, categories, t } = useFinance();
+const { addTransaction, updateTransaction, categories, transactions, t } = useFinance();
 
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -33,32 +33,50 @@ export default function TransactionForm({ type, existingData, onClose }) {
     }
   }, [existingData, categories]);
 
-  const handleSave = () => {
-    if (!amount || !categoryId) {
-      alert(t('enter_amount_category_error'));
+ const handleSave = async () => {
+    if (!amount || !categoryId || !date) {
+      alert(t('fill_required'));
       return;
     }
 
-    const selectedCategory = categories.find(c => c.id === categoryId);
-    
     const transactionData = {
-      amount: parseFloat(amount),
-      // Save ID for robustness, Name for legacy support
-      categoryId: selectedCategory?.id, 
-      category: selectedCategory ? selectedCategory.name : 'Uncategorized',
-      type: type,
-      date: new Date(date).toISOString(),
+      amount,
+      category: categories.find(c => c.id === categoryId)?.name,
+      categoryId: categoryId,
+      date: date, 
       notes,
       isRecurring,
-      // Save the frequency only if recurring is true
-      frequency: isRecurring ? frequency : null 
+      frequency: isRecurring ? frequency : null,
+      type
     };
 
-    if (existingData) {
-      updateTransaction(existingData.id, transactionData);
-    } else {
-      addTransaction(transactionData);
+    // --- LOGIC: HANDLE SPLIT (Versioning) ---
+ if (existingData && existingData.splitFromId) {
+        // Find old master
+        const oldMaster = transactions.find(t => t.id === existingData.splitFromId);
+        
+        if (oldMaster) {
+            // Stop old master YESTERDAY
+            const newStartDate = parseISO(date);
+            const stopDate = subDays(newStartDate, 1);
+            
+            await updateTransaction(oldMaster.id, {
+                ...oldMaster,
+                endDate: stopDate.toISOString()
+            });
+        }
+
+        // Add NEW transaction
+        await addTransaction(transactionData);
+
+    } 
+    else if (existingData && existingData.id) {
+        await updateTransaction(existingData.id, transactionData);
+    } 
+    else {
+        await addTransaction(transactionData);
     }
+
     onClose();
   };
 

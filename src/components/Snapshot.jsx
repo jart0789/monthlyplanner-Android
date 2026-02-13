@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, CreditCard, PieChart, Wallet } from 'lucide-react';
 import { useFinance } from '../contexts/FinanceContext';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO, isAfter, isBefore } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO, isAfter, isBefore, isSameDay } from 'date-fns';
 import { cn } from '../lib/utils';
 import { TourManager } from '../lib/TourManager'; 
 
@@ -9,58 +9,77 @@ export default function Snapshot({ onNavigate }) {
   const { transactions, credits, formatCurrency, t } = useFinance();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // --- 1. TIME TRAVEL LOGIC ---
   const handlePrevMonth = () => setSelectedDate(prev => subMonths(prev, 1));
   const handleNextMonth = () => setSelectedDate(prev => addMonths(prev, 1));
 
-    // 3. Add Tour Trigger
   useEffect(() => {
     TourManager.run('snapshot', onNavigate, t);
     return () => TourManager.cleanup();
   }, []);
 
-  // --- 2. DATA FILTERING ---
   const monthData = useMemo(() => {
     const monthStart = startOfMonth(selectedDate);
     const monthEnd = endOfMonth(selectedDate);
     const today = new Date();
 
-    // Filter transactions for this specific month
-    const currentMonthTxs = transactions.filter(tx => 
-      isWithinInterval(parseISO(tx.date), { start: monthStart, end: monthEnd })
+    // 1. EARNINGS (Income)
+    const incomeTxs = transactions.filter(t => 
+      t.type === 'income' && 
+      isWithinInterval(parseISO(t.date), { start: monthStart, end: monthEnd })
     );
-
-    // A. EARNINGS (Income)
-    const incomeTxs = currentMonthTxs.filter(t => t.type === 'income');
-    const earned = incomeTxs.filter(t => isBefore(parseISO(t.date), today)).reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const earned = incomeTxs.filter(t => isBefore(parseISO(t.date), today) || isSameDay(parseISO(t.date), today)).reduce((sum, t) => sum + parseFloat(t.amount), 0);
     const toEarn = incomeTxs.filter(t => isAfter(parseISO(t.date), today)).reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
-    // B. BILLS (Expenses that are NOT debt payments)
-    // We assume 'Debt Payment' category is used for credits. If you use a different name, update this check.
-    const billTxs = currentMonthTxs.filter(t => t.type === 'expense' && t.category !== 'Debt Payment');
-    const paidBills = billTxs.filter(t => isBefore(parseISO(t.date), today)).reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    // 2. BILLS (Expenses that are NOT debt payments)
+    const billTxs = transactions.filter(t => 
+        t.type === 'expense' && 
+        t.category !== 'Debt Payment' &&
+        isWithinInterval(parseISO(t.date), { start: monthStart, end: monthEnd })
+    );
+    const paidBills = billTxs.filter(t => isBefore(parseISO(t.date), today) || isSameDay(parseISO(t.date), today)).reduce((sum, t) => sum + parseFloat(t.amount), 0);
     const leftToPayBills = billTxs.filter(t => isAfter(parseISO(t.date), today)).reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
-    // C. CREDITS & LOANS
-    // 1. Actual payments made this month (Transactions)
-    const debtTxs = currentMonthTxs.filter(t => t.type === 'expense' && t.category === 'Debt Payment');
-    const paidDebt = debtTxs.reduce((sum, t) => sum + parseFloat(t.amount), 0);
-    
-    // 2. Total Expected Minimum Payments for active credits
-    const totalMinPayment = credits.reduce((sum, c) => sum + (parseFloat(c.minPayment) || 0), 0);
-    
-    // 3. Left to pay (Simple logic: Total Min - Paid). 
-    // Note: If you paid EXTRA, this might show negative, which is fine (means you are ahead)
-    let leftToPayDebt = totalMinPayment - paidDebt;
-    if (leftToPayDebt < 0) leftToPayDebt = 0;
+    // 3. CREDITS & LOANS (UPDATED LOGIC)
+    let totalPaidDebt = 0;
+    let totalLeftToPayDebt = 0;
 
-    // D. BUDGET / CATEGORY BREAKDOWN
+    credits.forEach(credit => {
+        // A. Get the Target (Minimum Payment) for this card
+        const minPay = parseFloat(credit.minPayment || 0);
+
+        // B. Calculate what has been PAID for this specific card in the selected month
+        let paidForThisCredit = 0;
+        
+        if (credit.history && Array.isArray(credit.history)) {
+            credit.history.forEach(payment => {
+                const pDate = parseISO(payment.date);
+                
+                // Check if payment belongs to the selected month view
+                if (isWithinInterval(pDate, { start: monthStart, end: monthEnd })) {
+                    // Include it if it's in the past or today
+                    if (isBefore(pDate, today) || isSameDay(pDate, today)) {
+                        paidForThisCredit += parseFloat(payment.amount);
+                    }
+                }
+            });
+        }
+        
+        // C. Calculate Left to Pay for THIS card
+        // If paid >= minPay, remaining is 0. If paid < minPay, remaining is diff.
+        const remainingForCredit = Math.max(0, minPay - paidForThisCredit);
+
+        // Add to totals
+        totalPaidDebt += paidForThisCredit;
+        totalLeftToPayDebt += remainingForCredit;
+    });
+
+    // 4. BUDGET BREAKDOWN
     const categoryTotals = {};
     billTxs.forEach(t => {
         const cat = t.category || 'Uncategorized';
         categoryTotals[cat] = (categoryTotals[cat] || 0) + parseFloat(t.amount);
     });
-    // Convert to array and sort by highest spend
+    
     const categories = Object.entries(categoryTotals)
         .map(([name, amount]) => ({ name, amount }))
         .sort((a, b) => b.amount - a.amount);
@@ -68,9 +87,10 @@ export default function Snapshot({ onNavigate }) {
     return {
         earned, toEarn,
         paidBills, leftToPayBills,
-        paidDebt, leftToPayDebt,
+        paidDebt: totalPaidDebt,
+        leftToPayDebt: totalLeftToPayDebt,
         categories,
-        totalSpent: paidBills + paidDebt
+        totalSpent: paidBills + totalPaidDebt
     };
   }, [selectedDate, transactions, credits]);
 
