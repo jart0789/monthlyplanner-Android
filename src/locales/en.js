@@ -346,6 +346,9 @@ export const en = {
     // --- SETTINGS PAGE ---
     general_tab: "General",
     categories_tab: "Categories",
+    help_support: "Help & Support",
+    help_desc: "Replay the app tutorial",
+    show_tutorial: "Show Tutorial",
     dark_mode: "Dark Mode",
     bill_reminders_title: "Bill Reminders",
     bill_reminders_desc: "Alerts for categories with reminders on.",

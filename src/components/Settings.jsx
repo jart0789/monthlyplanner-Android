@@ -128,7 +128,7 @@ useEffect(() => {
                       localStorage.removeItem('fintracker_tutorial_completed'); 
                       if (onNavigate) onNavigate('dashboard');
                     }}
-                    className="w-full py-2 ..."
+                    className="w-full py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm font-bold text-slate-700 dark:text-white transition-colors"
                   >
                     {t('show_tutorial') || 'Show Tutorial'}
               </button>

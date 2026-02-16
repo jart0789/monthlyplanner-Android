@@ -66,13 +66,11 @@ export default function Dashboard({ onNavigate }) {
     });
   }, [dailyReminders, hiddenReminders, credits]);
 
-
   // --- 1. BUILD CATEGORY MAP (Case Insensitive Keys) ---
   const categoryTypeMap = useMemo(() => {
     const map = {};
     if (categories) {
         categories.forEach(c => {
-            // Lowercase key for safer matching
             if (c.name) map[c.name.toLowerCase()] = c.type; 
         });
     }
@@ -84,7 +82,7 @@ export default function Dashboard({ onNavigate }) {
     
     // Pass the map to the engine
     const projection = calculateMonthlyProjection(transactions, today, categoryTypeMap);
-
+    
     const monthlyDebtMin = credits.reduce((acc, c) => {
         const balance = parseFloat(c.currentBalance || 0);
         return balance > 0 ? acc + parseFloat(c.minPayment || 0) : acc;
@@ -112,12 +110,10 @@ export default function Dashboard({ onNavigate }) {
 
   }, [transactions, credits, today, categoryTypeMap]); 
 
-
   const displayData = chartData.length > 0 ? chartData : [{ name: 'Empty', value: 1 }];
   const hasChartData = chartData.length > 0;
   const freeCashPercent = stats.monthlyIncome > 0 ? Math.round(((stats.netForecast) / stats.monthlyIncome) * 100) : 0;
 
-  // Touch handlers
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const minSwipeDistance = 50;

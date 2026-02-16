@@ -1,116 +1,132 @@
-import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { 
+    startOfMonth, 
+    endOfMonth, 
+    addMonths, 
+    addWeeks, 
+    addYears, 
+    addDays,
+    isAfter, 
+    format 
+} from 'date-fns';
 
-/**
- * Force dates to local noon to avoid timezone drift
- */
 export const getStrictLocalNoon = (dateInput) => {
-  let dateString = dateInput;
-  if (dateInput instanceof Date) {
-    dateString = format(dateInput, 'yyyy-MM-dd');
-  }
-
-  if (!dateString) return new Date();
-
-  const [y, m, d] = dateString.substring(0, 10).split('-').map(Number);
-  return new Date(y, m - 1, d, 12, 0, 0);
+    if (!dateInput) return new Date();
+    const dateString = dateInput instanceof Date ? format(dateInput, 'yyyy-MM-dd') : String(dateInput);
+    const parts = dateString.substring(0, 10).split('-');
+    if (parts.length !== 3) return new Date();
+    return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
 };
 
-/**
- * Normalize frequency values coming from UI / legacy data
- */
-const normalizeFrequency = (freq) => {
-  if (!freq) return null;
-  const f = freq.toLowerCase();
-  if (f === 'byweekly' || f === 'bi-weekly') return 'biweekly';
-  return f;
-};
-
-/**
- * Business forecast multipliers (THIS is the key fix)
- */
-const FREQUENCY_MULTIPLIER = {
-  monthly: 1,
-  biweekly: 2,
-  weekly: 4,
-  yearly: 1 / 12
-};
-
-/**
- * Robust amount parsing
- */
 const parseAmount = (val) => {
-  if (val == null) return 0;
-  if (typeof val === 'number') return val;
-  return parseFloat(String(val).replace(/,/g, '').trim()) || 0;
+    if (!val) return 0;
+    const clean = String(val).replace(/,/g, '');
+    return parseFloat(clean) || 0;
 };
 
-/**
- * ✅ FINAL FORECAST ENGINE
- * - NO date iteration
- * - NO child projections
- * - ONLY recurring masters
- * - Deterministic math
- */
-export const calculateMonthlyProjection = (
-  transactions,
-  targetDate,
-  categoryTypeMap = {}
-) => {
-  const monthStart = getStrictLocalNoon(startOfMonth(targetDate));
-  const monthEnd = getStrictLocalNoon(endOfMonth(targetDate));
+export const calculateMonthlyProjection = (transactions, targetDate, categoryTypeMap = {}) => {
+    const monthStartStr = format(targetDate, 'yyyy-MM');
+    const monthStart = getStrictLocalNoon(startOfMonth(targetDate));
+    const monthEnd = getStrictLocalNoon(endOfMonth(targetDate));
 
-  let totalIncome = 0;
-  let totalExpenses = 0;
-  const categoryTotals = {};
+    let totalIncome = 0;
+    let totalExpenses = 0;
+    const categoryTotals = {};
+    const occurrences = [];
 
-  transactions.forEach((t) => {
-    // --- 1. Must be recurring master ---
-    const isRecurring =
-      t.isRecurring === true || t.isRecurring === 'true' || t.isRecurring === 1;
-    if (!isRecurring) return;
+    // STEP A: Gather Physical Items for this month
+    transactions.forEach(t => {
+        if (t.date && t.date.substring(0, 7) === monthStartStr) {
+            const isRec = t.isRecurring === true || t.isRecurring === 'true' || t.isRecurring === 1;
+            if (isRec || t.recurringId) {
+                occurrences.push({ ...t, isGhost: false });
+            }
+        }
+    });
 
-    if (t.isPaused === true || t.isPaused === 'true') return;
+    // STEP B: Project future "Ghosts" for Masters
+    const masters = transactions.filter(t => {
+        return t.isRecurring === true || t.isRecurring === 'true' || t.isRecurring === 1;
+    });
+    
+    masters.forEach(master => {
+        const isPaused = master.isPaused === true || master.isPaused === 'true' || master.isPaused === 1;
+        if (isPaused) return;
 
-    // Child / ghost exclusion (critical)
-    if (t.recurringId) return;
-    if (t.recurringGroupId && t.recurringGroupId !== t.id) return;
+        const mDate = getStrictLocalNoon(master.date);
+        const endDate = master.endDate ? getStrictLocalNoon(master.endDate) : null;
+        let freq = (master.frequency || 'monthly').toLowerCase();
+        if (freq === 'byweekly' || freq === 'bi-weekly') freq = 'biweekly';
+        
+        if (isAfter(mDate, monthEnd)) return;
 
-    // --- 2. Frequency ---
-    const freq = normalizeFrequency(t.frequency);
-    if (!freq || !FREQUENCY_MULTIPLIER[freq]) return;
+        let baseDate = new Date(mDate);
+        let isSecondOccurrence = false; // Tracks the 2nd paycheck of the month
+        let safety = 0;
 
-    // --- 3. Date bounds (master validity only) ---
-    const startDate = getStrictLocalNoon(t.date);
-    if (startDate > monthEnd) return;
+        while (baseDate <= monthEnd && safety < 2000) {
+            safety++;
+            
+            // Calculate actual date for this specific occurrence
+            let currentIterDate = new Date(baseDate);
+            if (freq === 'biweekly' && isSecondOccurrence) {
+                currentIterDate = addDays(baseDate, 14);
+            }
+            
+            if (endDate && isAfter(currentIterDate, endDate)) break;
 
-    if (t.endDate) {
-      const endDate = getStrictLocalNoon(t.endDate);
-      if (endDate < monthStart) return;
-    }
+            if (currentIterDate >= monthStart && currentIterDate <= monthEnd) {
+                const dateStr = format(currentIterDate, 'yyyy-MM-dd');
+                
+                const isCovered = occurrences.some(o => {
+                    const isFamily = o.id === master.id || o.recurringId === master.id || (o.recurringId && o.recurringId === master.recurringId);
+                    return isFamily && o.date.substring(0, 10) === dateStr;
+                });
 
-    // --- 4. Amount & multiplier ---
-    const amount = parseAmount(t.amount);
-    const multiplier = FREQUENCY_MULTIPLIER[freq];
-    const projectedAmount = amount * multiplier;
+                if (!isCovered) {
+                    occurrences.push({
+                        ...master,
+                        date: dateStr,
+                        isGhost: true
+                    });
+                }
+            }
 
-    // --- 5. Resolve type ---
-    const catKey = (t.category || '').toLowerCase();
-    const resolvedType =
-      (categoryTypeMap[catKey] || t.type || 'expense').toLowerCase();
+            // STEP FORWARD
+            if (freq === 'monthly') {
+                baseDate = addMonths(baseDate, 1);
+            } else if (freq === 'weekly') {
+                baseDate = addWeeks(baseDate, 1);
+            } else if (freq === 'biweekly') {
+                // SEMI-MONTHLY LOGIC: 2 times a month, then jump to next month
+                if (isSecondOccurrence) {
+                    baseDate = addMonths(baseDate, 1);
+                    isSecondOccurrence = false;
+                } else {
+                    isSecondOccurrence = true;
+                }
+            } else if (freq === 'yearly') {
+                baseDate = addYears(baseDate, 1);
+            } else break; 
+        }
+    });
 
-    // --- 6. Aggregate ---
-    if (resolvedType === 'income') {
-      totalIncome += projectedAmount;
-    } else {
-      totalExpenses += projectedAmount;
-      const cat = t.category || 'Uncategorized';
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + projectedAmount;
-    }
-  });
+    // STEP C: Sum up the occurrences
+    occurrences.forEach(occ => {
+        const amount = parseAmount(occ.amount);
+        if (amount === 0) return;
 
-  return {
-    totalIncome,
-    totalExpenses,
-    categoryTotals
-  };
+        const catName = occ.category || 'Uncategorized';
+        const catKey = catName.toLowerCase();
+        
+        const resolvedType = (categoryTypeMap[catKey] || occ.type || 'expense').toLowerCase();
+        
+        if (resolvedType === 'income') {
+            totalIncome += amount;
+        } else if (resolvedType === 'expense') {
+            totalExpenses += amount;
+            categoryTotals[catName] = (categoryTotals[catName] || 0) + amount;
+        }
+    });
+
+    return { totalIncome, totalExpenses, categoryTotals };
 };

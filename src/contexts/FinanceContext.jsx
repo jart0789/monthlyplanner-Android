@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { parseISO, isSameDay } from 'date-fns';
+import { parseISO, isSameDay, addMonths, addWeeks, addYears, addDays } from 'date-fns';
 import { useTranslation } from 'react-i18next'; // IMPORT HOOK
 import '../utils/i18n'; // Init i18n
 
@@ -43,7 +43,7 @@ const getLocalDate = (dateStr) => {
 };
 
 export function FinanceProvider({ children }) {
-  const { t, i18n } = useTranslation(); // USE HOOK HERE
+  const { t, i18n } = useTranslation();
 
   const [data, setData] = useState(() => {
     try {
@@ -90,7 +90,7 @@ export function FinanceProvider({ children }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, credits, categories, settings }));
   }, [settings.theme, transactions, credits, categories, settings]);
 
-  // --- 1. RECURRING GENERATOR ENGINE (WITH CHECKPOINTS) ---
+  // --- 1. RECURRING GENERATOR ENGINE (WITH SAFETY FIXES) ---
   useEffect(() => {
     const processRecurring = () => {
       const today = new Date();
@@ -113,40 +113,66 @@ export function FinanceProvider({ children }) {
         const parent = family.find(t => t.isRecurring);
         if (!parent) return;
 
-        let baseDate = parent.lastGenerated ? parseISO(parent.lastGenerated) : parseISO(parent.date);
-        let nextDate = new Date(baseDate);
-        const freq = (parent.frequency || 'monthly').toLowerCase();
+        // FIX: If the user paused it, STOP creating zombies!
+        if (parent.isPaused === true || parent.isPaused === 'true') return;
+
+        let baseDate = getLocalDate(parent.date);
+        let freq = (parent.frequency || 'monthly').toLowerCase();
+        if (freq === 'byweekly' || freq === 'bi-weekly') freq = 'biweekly';
+        
+        // FIX: If the user deleted the series, STOP creating zombies!
+        const parentEndDate = parent.endDate ? getLocalDate(parent.endDate) : null;
+
+        let isSecond = false;
         let iterations = 0;
         let batchLastGenerated = null;
 
-        while (iterations < 36) {
-          if (freq === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
-          else if (freq === 'biweekly') nextDate.setDate(nextDate.getDate() + 14);
-          else if (freq === 'monthly') {
-              nextDate.setMonth(nextDate.getMonth() + 1);
-              const daysInMonth = new Date(nextDate.getFullYear(), nextDate.getMonth() + 1, 0).getDate();
-              if (nextDate.getDate() > daysInMonth) nextDate.setDate(daysInMonth);
+        while (iterations < 100) { // Safety cap
+          let currentIterDate = new Date(baseDate);
+          
+          if (freq === 'biweekly' && isSecond) {
+              currentIterDate = addDays(baseDate, 14);
           }
-          else if (freq === 'yearly') nextDate.setFullYear(nextDate.getFullYear() + 1);
 
-          if (nextDate > today) break;
+          if (currentIterDate > today) break;
+          
+          // CRITICAL FIX: Cut off generation if it passes the end date
+          if (parentEndDate && currentIterDate > parentEndDate) break;
 
-          const nextDateStr = nextDate.toISOString().split('T')[0];
+          const nextDateStr = currentIterDate.toISOString().split('T')[0];
+          const parentDateStr = parent.date.split('T')[0];
+          
           const alreadyExists = family.some(t => t.date.startsWith(nextDateStr));
 
-          if (!alreadyExists) {
+          // Only generate if we haven't already, and it's equal to or past the master start date
+          if (!alreadyExists && nextDateStr >= parentDateStr) {
             newItems.push({
               ...parent,
               id: generateId(),
-              date: nextDate.toISOString(),
+              date: currentIterDate.toISOString(),
               recurringId: familyId,
               isRecurring: false, 
               createdAt: new Date().toISOString()
             });
             hasChanges = true;
           }
-          batchLastGenerated = nextDate.toISOString();
+          
+          batchLastGenerated = currentIterDate.toISOString();
           iterations++;
+
+          // Step Forward
+          if (freq === 'monthly') baseDate = addMonths(baseDate, 1);
+          else if (freq === 'weekly') baseDate = addWeeks(baseDate, 1);
+          else if (freq === 'biweekly') {
+              if (isSecond) {
+                  baseDate = addMonths(baseDate, 1);
+                  isSecond = false;
+              } else {
+                  isSecond = true;
+              }
+          }
+          else if (freq === 'yearly') baseDate = addYears(baseDate, 1);
+          else break;
         }
 
         if (batchLastGenerated) {
@@ -169,7 +195,7 @@ export function FinanceProvider({ children }) {
     return () => clearTimeout(timer);
   }, [transactions.length]);
 
-  // --- 2. AUTO-PAY ENGINE (FIXED) ---
+  // --- 2. AUTO-PAY ENGINE ---
   useEffect(() => {
     const processAutoPay = () => {
       const today = new Date();
@@ -179,7 +205,6 @@ export function FinanceProvider({ children }) {
 
           const due = getLocalDate(c.dueDate);
           if (isSameDay(today, due)) {
-            // FIX: Check duplicates to prevent loop
             const alreadyPaid = c.history?.some(h => 
               isSameDay(parseISO(h.date), today) && 
               (h.note === 'Auto-Pay' || h.note === 'Autopay')
@@ -373,11 +398,8 @@ export function FinanceProvider({ children }) {
   };
   const dismissReminder = (id) => { setDismissedReminders(prev => [...prev, id]); };
 
-  // --- FIX IS HERE: FORCE 'en-US' LOCALE FOR FORMATTING ---
   const formatCurrency = (amount) => {
     try { 
-        // We use 'en-US' to ensure commas are thousands separators and dots are decimals.
-        // We still use settings.currency to show the correct symbol (EUR, JPY, etc.)
         return new Intl.NumberFormat('en-US', { 
             style: 'currency', 
             currency: settings.currency 

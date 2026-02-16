@@ -13,7 +13,6 @@ import TransactionForm from './TransactionForm';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'; 
 
 export default function TransactionList({ type = 'expense', onNavigate }) {
-  // 1. Destructure updateTransaction
   const { transactions, deleteTransaction, updateTransaction, formatCurrency, categories, t } = useFinance();
 
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -29,7 +28,6 @@ export default function TransactionList({ type = 'expense', onNavigate }) {
     return () => TourManager.cleanup();
   }, [type]);
 
-  // Reset category when switching income/expense
   useEffect(() => {
     setSelectedCategory('All');
   }, [type]);
@@ -38,9 +36,7 @@ export default function TransactionList({ type = 'expense', onNavigate }) {
     setCurrentDate(new Date());
   }, [activeTab]);
 
-  // --- HELPER: STRICT LOCAL NOON ---
-  // Forces all dates to 12:00 PM Local Time to prevent DST/Timezone drift
-const getStrictLocalNoon = (dateString) => {
+  const getStrictLocalNoon = (dateString) => {
     if (!dateString) return new Date();
     const parts = dateString.substring(0, 10).split('-');
     const y = parseInt(parts[0], 10);
@@ -49,46 +45,50 @@ const getStrictLocalNoon = (dateString) => {
     return new Date(y, m, d, 12, 0, 0);
   };
 
-  // --- PROJECTION ENGINE ---
   const allProjectedTransactions = useMemo(() => {
     const viewYearStart = startOfYear(currentDate);
     const viewYearEnd = endOfYear(currentDate);
-    // Guardrail: ±2 years to prevent performance issues
     const safeStart = subMonths(viewYearStart, 6); 
     const safeEnd = addMonths(viewYearEnd, 6);
 
-    const masters = transactions.filter(t => t.type === type && t.isRecurring && !t.recurringId);
+    const masters = transactions.filter(t => 
+        t.type === type && 
+        (t.isRecurring === true || t.isRecurring === 'true' || t.isRecurring === 1)
+    );
+    
     const ghosts = [];
 
     masters.forEach(master => {
         if (master.isPaused) return;
 
         const mDate = getStrictLocalNoon(master.date);
-        const freq = master.frequency || 'monthly';
+        let freq = (master.frequency || 'monthly').toLowerCase();
+        if (freq === 'byweekly' || freq === 'bi-weekly') freq = 'biweekly';
+
         const endDate = master.endDate ? getStrictLocalNoon(master.endDate) : null;
 
         if (isAfter(mDate, safeEnd)) return;
 
-        let iterDate = new Date(mDate);
+        let baseDate = new Date(mDate);
+        let isSecondOccurrence = false;
         let safety = 0;
 
-        // Loop until end of safe window (limit 750 iterations)
-        while (iterDate <= safeEnd && safety < 750) {
+        while (baseDate <= safeEnd && safety < 1000) {
             safety++;
             
-            // Check End Date (Inclusive)
-            if (endDate && isAfter(iterDate, endDate)) break;
+            let currentIterDate = new Date(baseDate);
+            if (freq === 'biweekly' && isSecondOccurrence) {
+                currentIterDate = addDays(baseDate, 14);
+            }
 
-            // Only add to list if it's inside our relevant window
-            if (iterDate >= safeStart) {
-                const dateStr = format(iterDate, 'yyyy-MM-dd');
+            if (endDate && isAfter(currentIterDate, endDate)) break;
+
+            if (currentIterDate >= safeStart && currentIterDate <= safeEnd) {
+                const dateStr = format(currentIterDate, 'yyyy-MM-dd');
                 
-                // Deduplication: Check for Real Transaction on this date
                 const isCovered = transactions.some(t => {
-                    if (t.id === master.id || t.recurringId === master.id) {
-                         return t.date.substring(0, 10) === dateStr;
-                    }
-                    return false;
+                    const isFamily = t.id === master.id || t.recurringId === master.id || (t.recurringId && t.recurringId === master.recurringId);
+                    return isFamily && t.date.substring(0, 10) === dateStr;
                 });
 
                 if (!isCovered) {
@@ -102,28 +102,34 @@ const getStrictLocalNoon = (dateString) => {
                 }
             }
 
-            // Iterate based on frequency
-            if (freq === 'monthly') iterDate = addMonths(iterDate, 1);
-            else if (freq === 'weekly') iterDate = addWeeks(iterDate, 4);
-            else if (freq === 'biweekly') iterDate = addWeeks(iterDate, 2);
-            else break; 
+            // STEP FORWARD
+            if (freq === 'monthly') {
+                baseDate = addMonths(baseDate, 1);
+            } else if (freq === 'weekly') {
+                baseDate = addWeeks(baseDate, 1);
+            } else if (freq === 'biweekly') {
+                if (isSecondOccurrence) {
+                    baseDate = addMonths(baseDate, 1);
+                    isSecondOccurrence = false;
+                } else {
+                    isSecondOccurrence = true;
+                }
+            } else if (freq === 'yearly') {
+                baseDate = addYears(baseDate, 1);
+            } else break; 
         }
     });
 
     return [...transactions, ...ghosts];
   }, [transactions, currentDate, type]);
 
-
-  // --- FILTER: Current Month ---
-   const monthlyTransactions = useMemo(() => {
+  const monthlyTransactions = useMemo(() => {
     const currentMonthStr = format(currentDate, 'yyyy-MM');
     return allProjectedTransactions
       .filter(t => t.type === type)
       .filter(t => t.date && t.date.substring(0, 7) === currentMonthStr);
   }, [allProjectedTransactions, currentDate, type]);
 
-
-  // --- FILTER: Category ---
   const filteredTransactions = useMemo(() => {
     let data = monthlyTransactions;
     if (selectedCategory !== 'All') {
@@ -132,32 +138,18 @@ const getStrictLocalNoon = (dateString) => {
     return data.sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [monthlyTransactions, selectedCategory]);
 
+  const totalAmount = useMemo(() => {
+    return filteredTransactions.reduce((acc, curr) => {
+        return acc + parseFloat(curr.amount || 0);
+    }, 0);
+  }, [filteredTransactions]);
 
-const getFrequencyMultiplier = (t) => {
-const freq = t.frequency;
-if (!freq) return 1;
-if (freq === 'monthly') return 1;
-if (freq === 'biweekly') return 2;
-if (freq === 'weekly') return 4;
-return 1;
-};
-
-
-const totalAmount = filteredTransactions.reduce((acc, curr) => {
-const multiplier = getFrequencyMultiplier(curr);
-return acc + parseFloat(curr.amount) * multiplier;
-}, 0);
-
-
-  // --- ACTIVE CATEGORIES (for chips) ---
   const activeCategories = useMemo(() => {
     const allCats = categories.filter(c => c.type === type);
     const activeNames = new Set(monthlyTransactions.map(t => t.category));
     return allCats.filter(c => activeNames.has(c.name));
   }, [monthlyTransactions, categories, type]);
 
-
-  // --- ANALYSIS DATA ---
   const analysisData = useMemo(() => {
     const yearStart = startOfYear(currentDate);
     const yearEnd = endOfYear(currentDate);
@@ -187,13 +179,10 @@ return acc + parseFloat(curr.amount) * multiplier;
     return { totalYearly: total, avgMonthly: avg, chartData };
   }, [allProjectedTransactions, currentDate, type]);
 
-
   const handleAddNew = () => { setEditingItem(null); setIsFormOpen(true); };
   
-  // --- SMART EDIT: Split Recurrence ---
   const handleEdit = (item) => { 
     if (item.isGhost) {
-        // Prepare split: New ID, but link to old master to close it
         setEditingItem({ 
             ...item, 
             id: undefined, 
@@ -207,10 +196,7 @@ return acc + parseFloat(curr.amount) * multiplier;
     setIsFormOpen(true); 
   };
 
-  // --- SMART DELETE: Stop Recurrence ---
    const handleDelete = async (id) => {
-    // We need to find the item object to check if it's a ghost. 
-    // Since handleDelete usually receives just ID, we find it in the list:
     const item = filteredTransactions.find(t => t.id === id);
 
     if (item && item.isGhost) {
@@ -218,7 +204,6 @@ return acc + parseFloat(curr.amount) * multiplier;
         if (confirm(confirmMsg)) {
             const master = transactions.find(t => t.id === item.originalId);
             if (master) {
-                // Set end date to yesterday
                 const ghostDate = parseISO(item.date); 
                 const stopDate = subDays(ghostDate, 1);
                 

@@ -1,12 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, CreditCard, PieChart, Wallet } from 'lucide-react';
 import { useFinance } from '../contexts/FinanceContext';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO, isAfter, isBefore, isSameDay } from 'date-fns';
+import { 
+    format, addMonths, subMonths, startOfMonth, endOfMonth, isWithinInterval, 
+    parseISO, isAfter, isBefore, isSameDay, startOfYear, endOfYear, addWeeks, addYears, addDays 
+} from 'date-fns';
 import { cn } from '../lib/utils';
 import { TourManager } from '../lib/TourManager'; 
+import { getStrictLocalNoon } from '../utils/financeForecast';
 
 export default function Snapshot({ onNavigate }) {
-  const { transactions, credits, formatCurrency, t } = useFinance();
+  const { transactions, credits, formatCurrency, t, categories } = useFinance();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const handlePrevMonth = () => setSelectedDate(prev => subMonths(prev, 1));
@@ -17,46 +21,147 @@ export default function Snapshot({ onNavigate }) {
     return () => TourManager.cleanup();
   }, []);
 
+  // --- 1. BUILD CATEGORY MAP (Prevents $0 Type Bugs) ---
+  const categoryTypeMap = useMemo(() => {
+    const map = {};
+    if (categories) {
+        categories.forEach(c => {
+            if (c.name) map[c.name.toLowerCase()] = c.type; 
+        });
+    }
+    return map;
+  }, [categories]);
+
+  // --- 2. GHOST PROJECTION ENGINE (Parity with TransactionList) ---
+  const allProjectedTransactions = useMemo(() => {
+    const viewYearStart = startOfYear(selectedDate);
+    const viewYearEnd = endOfYear(selectedDate);
+    const safeStart = subMonths(viewYearStart, 6); 
+    const safeEnd = addMonths(viewYearEnd, 6);
+
+    const masters = transactions.filter(t => 
+        (t.isRecurring === true || t.isRecurring === 'true' || t.isRecurring === 1)
+    );
+    
+    const ghosts = [];
+
+    masters.forEach(master => {
+        if (master.isPaused) return;
+
+        const mDate = getStrictLocalNoon(master.date);
+        let freq = (master.frequency || 'monthly').toLowerCase();
+        if (freq === 'byweekly' || freq === 'bi-weekly') freq = 'biweekly';
+
+        const endDate = master.endDate ? getStrictLocalNoon(master.endDate) : null;
+
+        if (isAfter(mDate, safeEnd)) return;
+
+        let baseDate = new Date(mDate);
+        let isSecondOccurrence = false;
+        let safety = 0;
+
+        while (baseDate <= safeEnd && safety < 1000) {
+            safety++;
+            
+            let currentIterDate = new Date(baseDate);
+            if (freq === 'biweekly' && isSecondOccurrence) {
+                currentIterDate = addDays(baseDate, 14);
+            }
+
+            if (endDate && isAfter(currentIterDate, endDate)) break;
+
+            if (currentIterDate >= safeStart && currentIterDate <= safeEnd) {
+                const dateStr = format(currentIterDate, 'yyyy-MM-dd');
+                
+                const isCovered = transactions.some(t => {
+                    const isFamily = t.id === master.id || t.recurringId === master.id || (t.recurringId && t.recurringId === master.recurringId);
+                    return isFamily && t.date.substring(0, 10) === dateStr;
+                });
+
+                if (!isCovered) {
+                    ghosts.push({
+                        ...master,
+                        id: `ghost-${master.id}-${dateStr}`,
+                        date: dateStr,
+                        isGhost: true, 
+                        originalId: master.id
+                    });
+                }
+            }
+
+            // STEP FORWARD
+            if (freq === 'monthly') {
+                baseDate = addMonths(baseDate, 1);
+            } else if (freq === 'weekly') {
+                baseDate = addWeeks(baseDate, 1);
+            } else if (freq === 'biweekly') {
+                if (isSecondOccurrence) {
+                    baseDate = addMonths(baseDate, 1);
+                    isSecondOccurrence = false;
+                } else {
+                    isSecondOccurrence = true;
+                }
+            } else if (freq === 'yearly') {
+                baseDate = addYears(baseDate, 1);
+            } else break; 
+        }
+    });
+
+    return [...transactions, ...ghosts];
+  }, [transactions, selectedDate]);
+
+
+  // --- 3. CALCULATE SNAPSHOT DATA ---
   const monthData = useMemo(() => {
-    const monthStart = startOfMonth(selectedDate);
-    const monthEnd = endOfMonth(selectedDate);
+    const currentMonthStr = format(selectedDate, 'yyyy-MM');
     const today = new Date();
+    const todayStr = format(today, 'yyyy-MM-dd');
 
-    // 1. EARNINGS (Income)
-    const incomeTxs = transactions.filter(t => 
-      t.type === 'income' && 
-      isWithinInterval(parseISO(t.date), { start: monthStart, end: monthEnd })
-    );
-    const earned = incomeTxs.filter(t => isBefore(parseISO(t.date), today) || isSameDay(parseISO(t.date), today)).reduce((sum, t) => sum + parseFloat(t.amount), 0);
-    const toEarn = incomeTxs.filter(t => isAfter(parseISO(t.date), today)).reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    // Filter to ONLY items in the selected month (Ghosts + Real)
+    const thisMonthTxs = allProjectedTransactions.filter(t => t.date && t.date.startsWith(currentMonthStr));
 
-    // 2. BILLS (Expenses that are NOT debt payments)
-    const billTxs = transactions.filter(t => 
-        t.type === 'expense' && 
-        t.category !== 'Debt Payment' &&
-        isWithinInterval(parseISO(t.date), { start: monthStart, end: monthEnd })
-    );
-    const paidBills = billTxs.filter(t => isBefore(parseISO(t.date), today) || isSameDay(parseISO(t.date), today)).reduce((sum, t) => sum + parseFloat(t.amount), 0);
-    const leftToPayBills = billTxs.filter(t => isAfter(parseISO(t.date), today)).reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    let earned = 0, toEarn = 0;
+    let paidBills = 0, leftToPayBills = 0;
+    const categoryTotals = {};
 
-    // 3. CREDITS & LOANS (UPDATED LOGIC)
+    thisMonthTxs.forEach(t => {
+        const amount = parseFloat(t.amount || 0);
+        if (amount === 0) return;
+
+        const catName = t.category || 'Uncategorized';
+        const catKey = catName.toLowerCase();
+        const resolvedType = (categoryTypeMap[catKey] || t.type || 'expense').toLowerCase();
+        
+        // Evaluate if the item is in the past (Paid/Earned) or future (Left to Pay/Earn)
+        const txDateStr = t.date.substring(0, 10);
+        const isPastOrToday = txDateStr <= todayStr;
+
+        if (resolvedType === 'income') {
+            if (isPastOrToday) earned += amount;
+            else toEarn += amount;
+        } else if (resolvedType === 'expense' && catName !== 'Debt Payment') {
+            if (isPastOrToday) paidBills += amount;
+            else leftToPayBills += amount;
+
+            // Budget tracking
+            categoryTotals[catName] = (categoryTotals[catName] || 0) + amount;
+        }
+    });
+
+    // CREDITS & LOANS LOGIC
     let totalPaidDebt = 0;
     let totalLeftToPayDebt = 0;
+    const monthStart = startOfMonth(selectedDate);
+    const monthEnd = endOfMonth(selectedDate);
 
     credits.forEach(credit => {
-        // A. Get the Target (Minimum Payment) for this card
         const minPay = parseFloat(credit.minPayment || 0);
-
-        // B. Calculate what has been PAID for this specific card in the selected month
         let paidForThisCredit = 0;
         
         if (credit.history && Array.isArray(credit.history)) {
             credit.history.forEach(payment => {
                 const pDate = parseISO(payment.date);
-                
-                // Check if payment belongs to the selected month view
                 if (isWithinInterval(pDate, { start: monthStart, end: monthEnd })) {
-                    // Include it if it's in the past or today
                     if (isBefore(pDate, today) || isSameDay(pDate, today)) {
                         paidForThisCredit += parseFloat(payment.amount);
                     }
@@ -64,23 +169,12 @@ export default function Snapshot({ onNavigate }) {
             });
         }
         
-        // C. Calculate Left to Pay for THIS card
-        // If paid >= minPay, remaining is 0. If paid < minPay, remaining is diff.
         const remainingForCredit = Math.max(0, minPay - paidForThisCredit);
-
-        // Add to totals
         totalPaidDebt += paidForThisCredit;
         totalLeftToPayDebt += remainingForCredit;
     });
 
-    // 4. BUDGET BREAKDOWN
-    const categoryTotals = {};
-    billTxs.forEach(t => {
-        const cat = t.category || 'Uncategorized';
-        categoryTotals[cat] = (categoryTotals[cat] || 0) + parseFloat(t.amount);
-    });
-    
-    const categories = Object.entries(categoryTotals)
+    const sortedCategories = Object.entries(categoryTotals)
         .map(([name, amount]) => ({ name, amount }))
         .sort((a, b) => b.amount - a.amount);
 
@@ -89,10 +183,10 @@ export default function Snapshot({ onNavigate }) {
         paidBills, leftToPayBills,
         paidDebt: totalPaidDebt,
         leftToPayDebt: totalLeftToPayDebt,
-        categories,
+        categories: sortedCategories,
         totalSpent: paidBills + totalPaidDebt
     };
-  }, [selectedDate, transactions, credits]);
+  }, [allProjectedTransactions, selectedDate, credits, categoryTypeMap]);
 
   return (
     <div className="space-y-6 pb-32 animate-in fade-in">
@@ -143,7 +237,7 @@ export default function Snapshot({ onNavigate }) {
             <div className="w-full h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div 
                     className="h-full bg-emerald-500 transition-all duration-500"
-                    style={{ width: `${(monthData.earned / (monthData.earned + monthData.toEarn || 1)) * 100}%` }}
+                    style={{ width: `${(monthData.earned / ((monthData.earned + monthData.toEarn) || 1)) * 100}%` }}
                 />
             </div>
          </div>
